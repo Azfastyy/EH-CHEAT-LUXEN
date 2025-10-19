@@ -65,6 +65,10 @@ local Tab = Window:CreateTab("Weapon Mods", 4483362458)
 
 local Tab = Window:CreateTab("Teleports", 4483362458)
 
+local Tab = Window:CreateTab("Auto Farm", 4483362458)
+
+local Tab = Window:CreateTab("Police", 4483362458)
+
 local Tab = Window:CreateTab("Miscs", 4483362458)
 
 local Tab = Window:CreateTab("Credits", 4483362458)
