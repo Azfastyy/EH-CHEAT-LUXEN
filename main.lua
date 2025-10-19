@@ -83,9 +83,51 @@ local Keybind = Tab:CreateKeybind({
    end,
 })
 
-local Section = Tab:CreateSection("Brr")
+local Section = Tab:CreateSection("Utils")
+local Toggle = Tab:CreateToggle({
+   Name = "Walk speed",
+   CurrentValue = false,
+   Flag = "walk_boost", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Callback = function(Value)
+   -- The function that takes place when the toggle is pressed
+   -- The variable (Value) is a boolean on whether the toggle is true or false
+   end,
+})
 
+local Slider = Tab:CreateSlider({
+   Name = "Walk speed",
+   Range = {0, 25},
+   Increment = 1,
+   Suffix = "Speed",
+   CurrentValue = 10,
+   Flag = "walk_speed", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Callback = function(Value)
+   -- The function that takes place when the slider changes
+   -- The variable (Value) is a number which correlates to the value the slider is currently at
+   end,
+})
 
+local Toggle = Tab:CreateToggle({
+   Name = "Infinite Stamina",
+   CurrentValue = false,
+   Flag = "inf_stamina", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Callback = function(Value)
+   -- The function that takes place when the toggle is pressed
+   -- The variable (Value) is a boolean on whether the toggle is true or false
+   end,
+})
+
+local Toggle = Tab:CreateToggle({
+   Name = "Infinite jump",
+   CurrentValue = false,
+   Flag = "inf_jump", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Callback = function(Value)
+   -- The function that takes place when the toggle is pressed
+   -- The variable (Value) is a boolean on whether the toggle is true or false
+   end,
+})
+
+local Tab = Window:CreateTab("🛡️｜Aimbot", 0)
 
 local Tab = Window:CreateTab("👀｜Visuals", 0)
 local Section = Tab:CreateSection("ESP")
