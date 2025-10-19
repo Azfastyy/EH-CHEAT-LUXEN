@@ -266,7 +266,12 @@ local jumpConnection = nil
 
 local Section = Tab:CreateSection("Utils")
 
--- WALK SPEED (Undetect method)
+-- WALK SPEED (Methode ultra furtive - manipulation de CFrame)
+local walkSpeedEnabled = false
+local walkSpeedValue = 16
+local originalWalkSpeed = 16
+local walkSpeedConnection = nil
+
 local function setWalkSpeed(enabled, speed)
     walkSpeedEnabled = enabled
     walkSpeedValue = speed
@@ -275,30 +280,38 @@ local function setWalkSpeed(enabled, speed)
     if not character then return end
     
     local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return end
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not rootPart then return end
     
     if enabled then
-        -- Sauvegarder la vitesse originale
-        originalWalkSpeed = humanoid.WalkSpeed
+        -- NE PAS toucher WalkSpeed directement (detecte!)
+        -- A la place, on accelere le mouvement via CFrame
         
-        -- Methode furtive: changer progressivement
         if walkSpeedConnection then
             walkSpeedConnection:Disconnect()
         end
         
-        walkSpeedConnection = RunService.Heartbeat:Connect(function()
+        walkSpeedConnection = RunService.Heartbeat:Connect(function(deltaTime)
             if not walkSpeedEnabled then return end
             
             local char = LocalPlayer.Character
             if not char then return end
             
             local hum = char:FindFirstChildOfClass("Humanoid")
-            if not hum then return end
+            local root = char:FindFirstChild("HumanoidRootPart")
+            if not hum or not root then return end
             
-            -- Changer progressivement pour eviter detection
-            if hum.WalkSpeed ~= walkSpeedValue then
-                local diff = walkSpeedValue - hum.WalkSpeed
-                hum.WalkSpeed = hum.WalkSpeed + (diff * 0.1)
+            -- Detecter si le joueur bouge
+            if hum.MoveDirection.Magnitude > 0 then
+                -- Calculer le boost (difference entre vitesse voulue et vitesse normale)
+                local boost = (walkSpeedValue - 16) / 16
+                
+                -- Appliquer un leger deplacement additionnel dans la direction du mouvement
+                local moveDirection = hum.MoveDirection
+                local additionalMove = moveDirection * boost * deltaTime * 16
+                
+                -- Deplacer via CFrame (plus furtif que WalkSpeed)
+                root.CFrame = root.CFrame + additionalMove
             end
         end)
     else
@@ -306,10 +319,6 @@ local function setWalkSpeed(enabled, speed)
         if walkSpeedConnection then
             walkSpeedConnection:Disconnect()
             walkSpeedConnection = nil
-        end
-        
-        if humanoid then
-            humanoid.WalkSpeed = originalWalkSpeed
         end
     end
 end
