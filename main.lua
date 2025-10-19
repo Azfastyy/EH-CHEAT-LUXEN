@@ -45,7 +45,7 @@ Rayfield:Notify({
 })
 
 
-local Tab = Window:CreateTab("Main", 4483362458) -- Title, Image
+local Tab = Window:CreateTab("Player", 4483362458) -- Title, Image
 
 
 local Section = Tab:CreateSection("Aimbot")
@@ -58,6 +58,12 @@ local Button = Tab:CreateButton({
 })
 
 
+local Tab = Window:CreateTab("Car Mods", 4483362458)
 
+local Tab = Window:CreateTab("Weapon Mods", 4483362458)
+
+local Tab = Window:CreateTab("Miscs", 4483362458)
+
+local Tab = Window:CreateTab("Credits", 4483362458)
 
 Rayfield:LoadConfiguration()
