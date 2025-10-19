@@ -46,6 +46,9 @@ Rayfield:Notify({
 
 
 local Tab = Window:CreateTab("👤｜Player", 0) -- Title, Image
+
+local Section = Tab:CreateSection("Fly")
+
 local Toggle = Tab:CreateToggle({
    Name = "Fly",
    CurrentValue = false,
@@ -60,7 +63,7 @@ local Slider = Tab:CreateSlider({
    Name = "Fly speed",
    Range = {0, 100},
    Increment = 5,
-   Suffix = "Bananas",
+   Suffix = "",
    CurrentValue = 10,
    Flag = "fly_speed", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
    Callback = function(Value)
@@ -71,7 +74,7 @@ local Slider = Tab:CreateSlider({
 
 
 
-local Section = Tab:CreateSection("Aimbot")
+local Section = Tab:CreateSection("Brr")
 
 
 
