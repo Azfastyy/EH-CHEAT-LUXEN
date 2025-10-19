@@ -57,10 +57,13 @@ local Button = Tab:CreateButton({
    end,
 })
 
+local Tab = Window:CreateTab("Visuals", 4483362458)
 
 local Tab = Window:CreateTab("Car Mods", 4483362458)
 
 local Tab = Window:CreateTab("Weapon Mods", 4483362458)
+
+local Tab = Window:CreateTab("Teleports", 4483362458)
 
 local Tab = Window:CreateTab("Miscs", 4483362458)
 
