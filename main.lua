@@ -45,7 +45,7 @@ Rayfield:Notify({
 })
 
 
-local Tab = Window:CreateTab("Player", 4483362458) -- Title, Image
+local Tab = Window:CreateTab("👤｜Player", 0) -- Title, Image
 
 
 local Section = Tab:CreateSection("Aimbot")
@@ -59,18 +59,18 @@ local Button = Tab:CreateButton({
 
 local Tab = Window:CreateTab("👀｜Visuals", 0)
 
-local Tab = Window:CreateTab("Car Mods", 4483362458)
+local Tab = Window:CreateTab("🏎️｜Car Mods", 0)
 
-local Tab = Window:CreateTab("Weapon Mods", 4483362458)
+local Tab = Window:CreateTab("🧨｜Weapon Mods", 0)
 
-local Tab = Window:CreateTab("Teleports", 4483362458)
+local Tab = Window:CreateTab("🪄｜Teleports", 0)
 
-local Tab = Window:CreateTab("Auto Farm", 4483362458)
+local Tab = Window:CreateTab("💶｜Auto Farm", 0)
 
-local Tab = Window:CreateTab("Police", 4483362458)
+local Tab = Window:CreateTab("👮｜Police", 0)
 
-local Tab = Window:CreateTab("Miscs", 4483362458)
+local Tab = Window:CreateTab("📦｜Miscs", 0)
 
-local Tab = Window:CreateTab("Credits", 4483362458)
+local Tab = Window:CreateTab("✏️｜Credits", 0)
 
 Rayfield:LoadConfiguration()
