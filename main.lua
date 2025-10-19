@@ -346,9 +346,10 @@ local WalkSpeedSlider = Tab:CreateSlider({
     end,
 })
 
--- INFINITE STAMINA (methode UI + brute force)
+-- INFINITE STAMINA (Version alternative - hook les fonctions)
 local infStaminaEnabled = false
 local staminaConnection = nil
+local staminaHooks = {}
 
 local function setInfiniteStamina(enabled)
     infStaminaEnabled = enabled
@@ -358,55 +359,45 @@ local function setInfiniteStamina(enabled)
             staminaConnection:Disconnect()
         end
         
+        -- Methode 1: Hook toutes les fonctions qui peuvent modifier des valeurs
+        local character = LocalPlayer.Character
+        if character then
+            -- Chercher TOUS les scripts/valeurs et les hook
+            for _, obj in pairs(character:GetDescendants()) do
+                if obj:IsA("NumberValue") or obj:IsA("IntValue") then
+                    -- Hook le changement de valeur
+                    local connection = obj.Changed:Connect(function(newValue)
+                        if infStaminaEnabled and newValue < 90 then
+                            obj.Value = 100
+                        end
+                    end)
+                    table.insert(staminaHooks, connection)
+                end
+            end
+        end
+        
+        -- Methode 2: Surveiller en permanence
         staminaConnection = RunService.Heartbeat:Connect(function()
             if not infStaminaEnabled then return end
             
-            local character = LocalPlayer.Character
-            if not character then return end
+            local char = LocalPlayer.Character
+            if not char then return end
             
-            local humanoid = character:FindFirstChildOfClass("Humanoid")
-            if not humanoid then return end
-            
-            -- Methode 1: Chercher et remplir toutes les valeurs qui baissent
-            for _, obj in pairs(character:GetDescendants()) do
-                if obj:IsA("NumberValue") or obj:IsA("IntValue") then
-                    -- Si la valeur est basse, la remplir
-                    if obj.Value and obj.Value < 90 then
-                        obj.Value = 100
-                    end
-                end
-            end
-            
-            -- Methode 2: Chercher dans PlayerGui (la barre que tu vois)
-            local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-            if playerGui then
-                for _, gui in pairs(playerGui:GetDescendants()) do
-                    -- Chercher les barres (Frame/ImageLabel qui changent de size)
-                    if gui:IsA("Frame") or gui:IsA("ImageLabel") then
-                        -- Si c'est une barre qui se vide, la garder pleine
-                        if gui.Size.X.Scale < 0.9 and gui.Size.X.Scale > 0 then
-                            gui.Size = UDim2.new(1, 0, gui.Size.Y.Scale, 0)
+            -- Scanner TOUT dans le character
+            for _, descendant in pairs(char:GetDescendants()) do
+                pcall(function()
+                    if descendant:IsA("NumberValue") or descendant:IsA("IntValue") then
+                        if descendant.Value < 95 then
+                            descendant.Value = 100
                         end
                     end
-                    
-                    -- Chercher les NumberValue dans le GUI
-                    if gui:IsA("NumberValue") or gui:IsA("IntValue") then
-                        if gui.Value and gui.Value < 90 then
-                            gui.Value = 100
-                        end
-                    end
-                end
+                end)
             end
             
-            -- Methode 3: Empecher le ralentissement force
-            if humanoid.WalkSpeed < 10 and not walkSpeedEnabled then
-                humanoid.WalkSpeed = 16
-            end
-            
-            -- Methode 4: Chercher les Attributes
-            for name, value in pairs(character:GetAttributes()) do
-                if type(value) == "number" and value < 90 then
-                    character:SetAttribute(name, 100)
+            -- Scanner les Attributes
+            for name, value in pairs(char:GetAttributes()) do
+                if type(value) == "number" and value < 95 then
+                    char:SetAttribute(name, 100)
                 end
             end
         end)
@@ -415,6 +406,12 @@ local function setInfiniteStamina(enabled)
             staminaConnection:Disconnect()
             staminaConnection = nil
         end
+        
+        -- Deconnecter les hooks
+        for _, connection in pairs(staminaHooks) do
+            connection:Disconnect()
+        end
+        staminaHooks = {}
     end
 end
 
@@ -429,10 +426,10 @@ local InfStaminaToggle = Tab:CreateToggle({
     end,
 })
 
--- INFINITE JUMP (methode bouton force)
+-- INFINITE JUMP (Version corrigee - retire seulement le cooldown)
 local infJumpEnabled = false
 local jumpConnection = nil
-local lastJumpTime = 0
+local canJump = true
 
 local function setInfiniteJump(enabled)
     infJumpEnabled = enabled
@@ -442,65 +439,29 @@ local function setInfiniteJump(enabled)
             jumpConnection:Disconnect()
         end
         
-        -- Methode agressive: forcer le saut en permanence quand on appuie
-        jumpConnection = RunService.Heartbeat:Connect(function()
+        local character = LocalPlayer.Character
+        if not character then return end
+        
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if not humanoid then return end
+        
+        -- Methode: Empecher le cooldown du saut
+        jumpConnection = humanoid.StateChanged:Connect(function(old, new)
             if not infJumpEnabled then return end
             
-            local character = LocalPlayer.Character
-            if not character then return end
-            
-            local humanoid = character:FindFirstChildOfClass("Humanoid")
-            if not humanoid then return end
-            
-            -- Detecter si le joueur veut sauter
-            local jumping = false
-            
-            -- PC: Space
-            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-                jumping = true
-            end
-            
-            -- Mobile: Verifier le bouton de saut
-            local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-            if playerGui then
-                local touchGui = playerGui:FindFirstChild("TouchGui")
-                if touchGui then
-                    local jumpButton = touchGui:FindFirstChild("TouchControlFrame")
-                    if jumpButton then
-                        local jumpBtn = jumpButton:FindFirstChild("JumpButton")
-                        if jumpBtn and jumpBtn:IsA("ImageButton") then
-                            -- Si le bouton est visible et presse
-                            if jumpBtn.Visible then
-                                jumping = true
-                            end
-                        end
-                    end
-                end
-            end
-            
-            -- Forcer le saut sans cooldown
-            if jumping then
-                local currentTime = tick()
-                -- Limiter a 30 sauts par seconde pour eviter crash
-                if currentTime - lastJumpTime > 0.033 then
-                    pcall(function()
-                        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                    end)
-                    lastJumpTime = currentTime
-                end
-            end
-            
-            -- Methode alternative: Activer le bouton de saut en permanence
-            if playerGui then
-                for _, gui in pairs(playerGui:GetDescendants()) do
-                    if gui:IsA("ImageButton") and (gui.Name:lower():find("jump") or gui.Name == "JumpButton") then
-                        -- Forcer le bouton a etre visible et actif
-                        gui.Visible = true
-                        gui.Active = true
-                    end
+            -- Si on vient de sauter, retirer immediatement le cooldown
+            if new == Enum.HumanoidStateType.Jumping or new == Enum.HumanoidStateType.Freefall then
+                wait(0.1) -- Petit delai pour que le saut s'execute
+                -- Forcer l'etat a "Landed" pour permettre un nouveau saut
+                if humanoid:GetState() ~= Enum.HumanoidStateType.Jumping then
+                    humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
                 end
             end
         end)
+        
+        -- Activer en permanence la capacite de sauter
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+        
     else
         if jumpConnection then
             jumpConnection:Disconnect()
@@ -520,7 +481,7 @@ local InfJumpToggle = Tab:CreateToggle({
     end,
 })
 
--- Reset tout si le personnage respawn
+-- Reset si respawn
 LocalPlayer.CharacterAdded:Connect(function(character)
     wait(0.5)
     
