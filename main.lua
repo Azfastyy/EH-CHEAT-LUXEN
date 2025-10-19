@@ -37,7 +37,26 @@ local Window = Rayfield:CreateWindow({
    }
 })
 
+Rayfield:Notify({
+   Title = "Welcome on Luxen",
+   Content = "Enjoy !",
+   Duration = 3.5,
+   Image = 4483362458,
+})
+
+
 local Tab = Window:CreateTab("Main", 4483362458) -- Title, Image
+
+
+local Section = Tab:CreateSection("Aimbot")
+
+local Button = Tab:CreateButton({
+   Name = "Brr brr button",
+   Callback = function()
+   -- The function that takes place when the button is pressed
+   end,
+})
+
 
 
 
