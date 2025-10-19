@@ -63,7 +63,7 @@ local Tab = Window:CreateTab("🏎️｜Car Mods", 0)
 
 local Tab = Window:CreateTab("🧨｜Weapon Mods", 0)
 
-local Tab = Window:CreateTab("🪄｜Teleports", 0)
+local Tab = Window:CreateTab("🚀｜Teleports", 0)
 
 local Tab = Window:CreateTab("💶｜Auto Farm", 0)
 
