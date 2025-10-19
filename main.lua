@@ -14,7 +14,7 @@ local Window = Rayfield:CreateWindow({
    DisableBuildWarnings = false, -- Prevents Rayfield from warning when the script has a version mismatch with the interface
 
    ConfigurationSaving = {
-      Enabled = true,
+      Enabled = false,
       FolderName = nil, -- Create a custom folder for your hub/game
       FileName = "Big Hub"
    },
@@ -49,12 +49,13 @@ local Tab = Window:CreateTab("👤｜Player", 0) -- Title, Image
 
 local Section = Tab:CreateSection("Fly")
 
--- Variables pour le Fly (version furtive)
+-- Variables pour le Fly (version ultra furtive)
 local flyEnabled = false
 local flySpeed = 10
 local flyConnection = nil
 local shiftlockEnabled = false
-local originalGravity = nil
+local originalCFrame = nil
+local lastPosition = nil
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -76,7 +77,7 @@ local function setShiftlock(enabled)
     end)
 end
 
--- Methode furtive: manipulation de CFrame au lieu de BodyVelocity
+-- Methode ultra furtive: Teleportation par petits increments
 local function toggleFly(enabled)
     flyEnabled = enabled
     local character = LocalPlayer.Character
@@ -88,16 +89,24 @@ local function toggleFly(enabled)
     if not humanoid or not rootPart then return end
     
     if enabled then
-        -- Activer le shiftlock
         setShiftlock(true)
         
-        -- Sauvegarder la gravite originale
-        originalGravity = workspace.Gravity
+        -- Sauvegarder la position initiale
+        lastPosition = rootPart.Position
         
-        -- Methode 1: Modifier la gravite du workspace (moins detectable)
-        workspace.Gravity = 0
+        -- Creer une partie invisible pour "marcher" dessus (simule un sol)
+        local flyPart = Instance.new("Part")
+        flyPart.Name = "FlyPart"
+        flyPart.Size = Vector3.new(10, 0.5, 10)
+        flyPart.Transparency = 1
+        flyPart.CanCollide = true
+        flyPart.Anchored = true
+        flyPart.CFrame = CFrame.new(rootPart.Position - Vector3.new(0, 3, 0))
+        flyPart.Parent = workspace
         
-        -- Boucle de vol (utilise CFrame au lieu de BodyVelocity)
+        -- Boucle de vol
+        local moveAccumulator = Vector3.new(0, 0, 0)
+        
         flyConnection = RunService.Heartbeat:Connect(function(deltaTime)
             if not flyEnabled or not rootPart or not rootPart.Parent then return end
             
@@ -133,18 +142,42 @@ local function toggleFly(enabled)
                 moveDirection = moveDirection + (cameraCFrame.LookVector * moveDir.Z) + (cameraCFrame.RightVector * moveDir.X)
             end
             
-            -- Normaliser la direction
+            -- Normaliser
             if moveDirection.Magnitude > 0 then
                 moveDirection = moveDirection.Unit
             end
             
-            -- Appliquer le mouvement via CFrame (plus furtif)
-            local newPosition = rootPart.CFrame.Position + (moveDirection * flySpeed * deltaTime)
-            rootPart.CFrame = CFrame.new(newPosition) * CFrame.Angles(0, math.atan2(camera.CFrame.LookVector.X, camera.CFrame.LookVector.Z), 0)
+            -- Accumuler le mouvement pour eviter les teleports detectables
+            moveAccumulator = moveAccumulator + (moveDirection * flySpeed * deltaTime)
             
-            -- Annuler la velocite pour eviter la detection
-            rootPart.Velocity = Vector3.new(0, 0, 0)
-            rootPart.RotVelocity = Vector3.new(0, 0, 0)
+            -- Appliquer seulement si assez de mouvement accumule (mouvement plus naturel)
+            if moveAccumulator.Magnitude > 0.1 then
+                local targetPosition = rootPart.Position + moveAccumulator
+                
+                -- Deplacer la partie invisible sous le joueur
+                if flyPart and flyPart.Parent then
+                    flyPart.CFrame = CFrame.new(targetPosition - Vector3.new(0, 3, 0))
+                end
+                
+                -- Utiliser Humanoid:MoveTo au lieu de CFrame (plus naturel)
+                humanoid:MoveTo(targetPosition)
+                
+                -- Reset l'accumulateur
+                moveAccumulator = Vector3.new(0, 0, 0)
+                
+                -- Sauvegarder la derniere position
+                lastPosition = targetPosition
+            end
+            
+            -- Orienter le personnage vers la camera
+            local lookVector = camera.CFrame.LookVector
+            local targetCFrame = CFrame.new(rootPart.Position, rootPart.Position + Vector3.new(lookVector.X, 0, lookVector.Z))
+            rootPart.CFrame = rootPart.CFrame:Lerp(targetCFrame, 0.1)
+            
+            -- Annuler les velocites anormales
+            if rootPart.Velocity.Magnitude > flySpeed * 2 then
+                rootPart.Velocity = Vector3.new(0, 0, 0)
+            end
         end)
         
     else
@@ -154,15 +187,15 @@ local function toggleFly(enabled)
             flyConnection = nil
         end
         
-        -- Desactiver le shiftlock
         setShiftlock(false)
         
-        -- Restaurer la gravite
-        if originalGravity then
-            workspace.Gravity = originalGravity
+        -- Supprimer la partie invisible
+        local flyPart = workspace:FindFirstChild("FlyPart")
+        if flyPart then
+            flyPart:Destroy()
         end
         
-        -- Reset velocity
+        -- Reset
         if rootPart then
             rootPart.Velocity = Vector3.new(0, 0, 0)
             rootPart.RotVelocity = Vector3.new(0, 0, 0)
@@ -182,13 +215,13 @@ local Toggle = Tab:CreateToggle({
     end,
 })
 
--- Slider vitesse
+-- Slider vitesse (limité pour être plus discret)
 local Slider = Tab:CreateSlider({
     Name = "Fly speed",
-    Range = {10, 100},
+    Range = {5, 50},
     Increment = 5,
     Suffix = "speed",
-    CurrentValue = 30,
+    CurrentValue = 20,
     Flag = "fly_speed",
     Callback = function(Value)
         flySpeed = Value
@@ -210,7 +243,7 @@ local Keybind = Tab:CreateKeybind({
     end,
 })
 
--- Reset le fly si le personnage respawn
+-- Reset si respawn
 LocalPlayer.CharacterAdded:Connect(function(character)
     wait(0.1)
     if flyEnabled then
@@ -218,16 +251,6 @@ LocalPlayer.CharacterAdded:Connect(function(character)
             toggleFly(false)
             flyEnabled = false
             Toggle:Set(false)
-        end)
-    end
-end)
-
--- Protection: desactiver si detecte un kick imminent
-game:GetService("GuiService").ErrorMessageChanged:Connect(function()
-    if flyEnabled then
-        pcall(function()
-            toggleFly(false)
-            flyEnabled = false
         end)
     end
 end)
