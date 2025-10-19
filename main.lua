@@ -46,18 +46,55 @@ Rayfield:Notify({
 
 
 local Tab = Window:CreateTab("👤｜Player", 0) -- Title, Image
+local Toggle = Tab:CreateToggle({
+   Name = "Fly",
+   CurrentValue = false,
+   Flag = "fly", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Callback = function(Value)
+   -- The function that takes place when the toggle is pressed
+   -- The variable (Value) is a boolean on whether the toggle is true or false
+   end,
+})
+
+local Slider = Tab:CreateSlider({
+   Name = "Fly speed",
+   Range = {0, 100},
+   Increment = 5,
+   Suffix = "Bananas",
+   CurrentValue = 10,
+   Flag = "fly_speed", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Callback = function(Value)
+   -- The function that takes place when the slider changes
+   -- The variable (Value) is a number which correlates to the value the slider is currently at
+   end,
+})
+
 
 
 local Section = Tab:CreateSection("Aimbot")
 
-local Button = Tab:CreateButton({
-   Name = "Brr brr button",
-   Callback = function()
-   -- The function that takes place when the button is pressed
+
+
+local Tab = Window:CreateTab("👀｜Visuals", 0)
+local Toggle = Tab:CreateToggle({
+   Name = "ESP names",
+   CurrentValue = false,
+   Flag = "esp_names", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Callback = function(Value)
+   -- The function that takes place when the toggle is pressed
+   -- The variable (Value) is a boolean on whether the toggle is true or false
    end,
 })
 
-local Tab = Window:CreateTab("👀｜Visuals", 0)
+local Toggle = Tab:CreateToggle({
+   Name = "ESP distance (stunds)",
+   CurrentValue = false,
+   Flag = "esp_distance", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Callback = function(Value)
+   -- The function that takes place when the toggle is pressed
+   -- The variable (Value) is a boolean on whether the toggle is true or false
+   end,
+})
 
 local Tab = Window:CreateTab("🏎️｜Car Mods", 0)
 
