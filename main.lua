@@ -346,72 +346,52 @@ local WalkSpeedSlider = Tab:CreateSlider({
     end,
 })
 
--- INFINITE STAMINA (Version alternative - hook les fonctions)
+-- INFINITE STAMINA (Version hookfunction - basée sur leur code)
 local infStaminaEnabled = false
-local staminaConnection = nil
-local staminaHooks = {}
+local staminaHooked = false
+
+local function hookStamina()
+    if staminaHooked then return end
+    
+    pcall(function()
+        -- Chercher la fonction setStamina dans le garbage collector
+        local setStaminaFunc = nil
+        
+        for i, v in pairs(getgc(true)) do
+            if type(v) == "function" then
+                local info = debug.getinfo(v)
+                if info and info.name == "setStamina" then
+                    setStaminaFunc = v
+                    break
+                end
+            end
+        end
+        
+        if setStaminaFunc then
+            -- Hook la fonction pour toujours mettre la stamina au max
+            hookfunction(setStaminaFunc, function(self, value)
+                if infStaminaEnabled then
+                    -- Toujours mettre 1 (max stamina)
+                    return setStaminaFunc(self, 1)
+                else
+                    -- Comportement normal
+                    return setStaminaFunc(self, value)
+                end
+            end)
+            
+            staminaHooked = true
+            print("Stamina hooked successfully!")
+        else
+            warn("setStamina function not found!")
+        end
+    end)
+end
 
 local function setInfiniteStamina(enabled)
     infStaminaEnabled = enabled
     
-    if enabled then
-        if staminaConnection then
-            staminaConnection:Disconnect()
-        end
-        
-        -- Methode 1: Hook toutes les fonctions qui peuvent modifier des valeurs
-        local character = LocalPlayer.Character
-        if character then
-            -- Chercher TOUS les scripts/valeurs et les hook
-            for _, obj in pairs(character:GetDescendants()) do
-                if obj:IsA("NumberValue") or obj:IsA("IntValue") then
-                    -- Hook le changement de valeur
-                    local connection = obj.Changed:Connect(function(newValue)
-                        if infStaminaEnabled and newValue < 90 then
-                            obj.Value = 100
-                        end
-                    end)
-                    table.insert(staminaHooks, connection)
-                end
-            end
-        end
-        
-        -- Methode 2: Surveiller en permanence
-        staminaConnection = RunService.Heartbeat:Connect(function()
-            if not infStaminaEnabled then return end
-            
-            local char = LocalPlayer.Character
-            if not char then return end
-            
-            -- Scanner TOUT dans le character
-            for _, descendant in pairs(char:GetDescendants()) do
-                pcall(function()
-                    if descendant:IsA("NumberValue") or descendant:IsA("IntValue") then
-                        if descendant.Value < 95 then
-                            descendant.Value = 100
-                        end
-                    end
-                end)
-            end
-            
-            -- Scanner les Attributes
-            for name, value in pairs(char:GetAttributes()) do
-                if type(value) == "number" and value < 95 then
-                    char:SetAttribute(name, 100)
-                end
-            end
-        end)
-    else
-        if staminaConnection then
-            staminaConnection:Disconnect()
-            staminaConnection = nil
-        end
-        
-        -- Deconnecter les hooks
-        for _, connection in pairs(staminaHooks) do
-            connection:Disconnect()
-        end
-        staminaHooks = {}
+    if enabled and not staminaHooked then
+        hookStamina()
     end
 end
 
@@ -425,6 +405,38 @@ local InfStaminaToggle = Tab:CreateToggle({
         end)
     end,
 })
+
+-- Hook aussi useStamina pour empecher la consommation
+spawn(function()
+    wait(2) -- Attendre que le jeu charge
+    
+    pcall(function()
+        local useStaminaFunc = nil
+        
+        for i, v in pairs(getgc(true)) do
+            if type(v) == "function" then
+                local info = debug.getinfo(v)
+                if info and info.name == "useStamina" then
+                    useStaminaFunc = v
+                    break
+                end
+            end
+        end
+        
+        if useStaminaFunc then
+            hookfunction(useStaminaFunc, function(self, amount)
+                if infStaminaEnabled then
+                    -- Ne jamais consommer de stamina, toujours retourner true
+                    return true
+                else
+                    return useStaminaFunc(self, amount)
+                end
+            end)
+            
+            print("useStamina hooked successfully!")
+        end
+    end)
+end)
 
 -- INFINITE JUMP (Version corrigee - retire seulement le cooldown)
 local infJumpEnabled = false
