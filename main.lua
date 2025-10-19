@@ -49,11 +49,12 @@ local Tab = Window:CreateTab("👤｜Player", 0) -- Title, Image
 
 local Section = Tab:CreateSection("Fly")
 
--- Variables pour le Fly
+-- Variables pour le Fly (version furtive)
 local flyEnabled = false
 local flySpeed = 10
 local flyConnection = nil
 local shiftlockEnabled = false
+local originalGravity = nil
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -62,18 +63,20 @@ local RunService = game:GetService("RunService")
 
 -- Fonction pour activer/desactiver le shiftlock
 local function setShiftlock(enabled)
-    if enabled then
-        LocalPlayer.DevEnableMouseLock = true
-        UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
-        shiftlockEnabled = true
-    else
-        LocalPlayer.DevEnableMouseLock = false
-        UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-        shiftlockEnabled = false
-    end
+    pcall(function()
+        if enabled then
+            LocalPlayer.DevEnableMouseLock = true
+            UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+            shiftlockEnabled = true
+        else
+            LocalPlayer.DevEnableMouseLock = false
+            UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+            shiftlockEnabled = false
+        end
+    end)
 end
 
--- Fonction principale du Fly
+-- Methode furtive: manipulation de CFrame au lieu de BodyVelocity
 local function toggleFly(enabled)
     flyEnabled = enabled
     local character = LocalPlayer.Character
@@ -88,31 +91,22 @@ local function toggleFly(enabled)
         -- Activer le shiftlock
         setShiftlock(true)
         
-        -- Creer le BodyVelocity pour le fly
-        local bodyVelocity = Instance.new("BodyVelocity")
-        bodyVelocity.Name = "FlyVelocity"
-        bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
-        bodyVelocity.Parent = rootPart
+        -- Sauvegarder la gravite originale
+        originalGravity = workspace.Gravity
         
-        local bodyGyro = Instance.new("BodyGyro")
-        bodyGyro.Name = "FlyGyro"
-        bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-        bodyGyro.P = 9000
-        bodyGyro.CFrame = rootPart.CFrame
-        bodyGyro.Parent = rootPart
+        -- Methode 1: Modifier la gravite du workspace (moins detectable)
+        workspace.Gravity = 0
         
-        -- Desactiver la gravite
-        humanoid.PlatformStand = true
-        
-        -- Boucle de vol
-        flyConnection = RunService.Heartbeat:Connect(function()
-            if not flyEnabled then return end
+        -- Boucle de vol (utilise CFrame au lieu de BodyVelocity)
+        flyConnection = RunService.Heartbeat:Connect(function(deltaTime)
+            if not flyEnabled or not rootPart or not rootPart.Parent then return end
             
             local camera = workspace.CurrentCamera
+            if not camera then return end
+            
             local moveDirection = Vector3.new(0, 0, 0)
             
-            -- Detection des touches (PC et Mobile)
+            -- Detection des touches PC
             if UserInputService:IsKeyDown(Enum.KeyCode.W) or UserInputService:IsKeyDown(Enum.KeyCode.Z) then
                 moveDirection = moveDirection + camera.CFrame.LookVector
             end
@@ -132,22 +126,25 @@ local function toggleFly(enabled)
                 moveDirection = moveDirection - Vector3.new(0, 1, 0)
             end
             
-            -- Support mobile (TouchEnabled)
+            -- Support mobile
             if humanoid.MoveDirection.Magnitude > 0 then
                 local cameraCFrame = camera.CFrame
                 local moveDir = humanoid.MoveDirection
-                moveDirection = (cameraCFrame.LookVector * moveDir.Z) + (cameraCFrame.RightVector * moveDir.X)
+                moveDirection = moveDirection + (cameraCFrame.LookVector * moveDir.Z) + (cameraCFrame.RightVector * moveDir.X)
             end
             
-            -- Appliquer la velocite
-            if bodyVelocity then
-                bodyVelocity.Velocity = moveDirection * flySpeed
+            -- Normaliser la direction
+            if moveDirection.Magnitude > 0 then
+                moveDirection = moveDirection.Unit
             end
             
-            -- Orienter le personnage vers la camera
-            if bodyGyro then
-                bodyGyro.CFrame = camera.CFrame
-            end
+            -- Appliquer le mouvement via CFrame (plus furtif)
+            local newPosition = rootPart.CFrame.Position + (moveDirection * flySpeed * deltaTime)
+            rootPart.CFrame = CFrame.new(newPosition) * CFrame.Angles(0, math.atan2(camera.CFrame.LookVector.X, camera.CFrame.LookVector.Z), 0)
+            
+            -- Annuler la velocite pour eviter la detection
+            rootPart.Velocity = Vector3.new(0, 0, 0)
+            rootPart.RotVelocity = Vector3.new(0, 0, 0)
         end)
         
     else
@@ -160,16 +157,16 @@ local function toggleFly(enabled)
         -- Desactiver le shiftlock
         setShiftlock(false)
         
-        -- Supprimer les BodyVelocity et BodyGyro
-        if rootPart:FindFirstChild("FlyVelocity") then
-            rootPart.FlyVelocity:Destroy()
-        end
-        if rootPart:FindFirstChild("FlyGyro") then
-            rootPart.FlyGyro:Destroy()
+        -- Restaurer la gravite
+        if originalGravity then
+            workspace.Gravity = originalGravity
         end
         
-        -- Reactiver la physique normale
-        humanoid.PlatformStand = false
+        -- Reset velocity
+        if rootPart then
+            rootPart.Velocity = Vector3.new(0, 0, 0)
+            rootPart.RotVelocity = Vector3.new(0, 0, 0)
+        end
     end
 end
 
@@ -179,17 +176,19 @@ local Toggle = Tab:CreateToggle({
     CurrentValue = false,
     Flag = "fly",
     Callback = function(Value)
-        toggleFly(Value)
+        pcall(function()
+            toggleFly(Value)
+        end)
     end,
 })
 
 -- Slider vitesse
 local Slider = Tab:CreateSlider({
     Name = "Fly speed",
-    Range = {10, 200},
+    Range = {10, 100},
     Increment = 5,
     Suffix = "speed",
-    CurrentValue = 50,
+    CurrentValue = 30,
     Flag = "fly_speed",
     Callback = function(Value)
         flySpeed = Value
@@ -203,19 +202,33 @@ local Keybind = Tab:CreateKeybind({
     HoldToInteract = false,
     Flag = "fly_bind",
     Callback = function()
-        flyEnabled = not flyEnabled
-        Toggle:Set(flyEnabled)
-        toggleFly(flyEnabled)
+        pcall(function()
+            flyEnabled = not flyEnabled
+            Toggle:Set(flyEnabled)
+            toggleFly(flyEnabled)
+        end)
     end,
 })
 
 -- Reset le fly si le personnage respawn
-LocalPlayer.CharacterAdded:Connect(function()
+LocalPlayer.CharacterAdded:Connect(function(character)
+    wait(0.1)
     if flyEnabled then
-        wait(0.5)
-        toggleFly(false)
-        flyEnabled = false
-        Toggle:Set(false)
+        pcall(function()
+            toggleFly(false)
+            flyEnabled = false
+            Toggle:Set(false)
+        end)
+    end
+end)
+
+-- Protection: desactiver si detecte un kick imminent
+game:GetService("GuiService").ErrorMessageChanged:Connect(function()
+    if flyEnabled then
+        pcall(function()
+            toggleFly(false)
+            flyEnabled = false
+        end)
     end
 end)
 
