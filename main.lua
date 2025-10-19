@@ -49,13 +49,11 @@ local Tab = Window:CreateTab("👤｜Player", 0) -- Title, Image
 
 local Section = Tab:CreateSection("Fly")
 
--- Variables pour le Fly (version ultra furtive)
+-- Variables pour le Fly (version ultra furtive - CORRIGEE)
 local flyEnabled = false
 local flySpeed = 10
 local flyConnection = nil
 local shiftlockEnabled = false
-local originalCFrame = nil
-local lastPosition = nil
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -77,7 +75,7 @@ local function setShiftlock(enabled)
     end)
 end
 
--- Methode ultra furtive: Teleportation par petits increments
+-- Methode ultra furtive avec direction corrigee
 local function toggleFly(enabled)
     flyEnabled = enabled
     local character = LocalPlayer.Character
@@ -91,10 +89,7 @@ local function toggleFly(enabled)
     if enabled then
         setShiftlock(true)
         
-        -- Sauvegarder la position initiale
-        lastPosition = rootPart.Position
-        
-        -- Creer une partie invisible pour "marcher" dessus (simule un sol)
+        -- Creer une partie invisible pour "marcher" dessus
         local flyPart = Instance.new("Part")
         flyPart.Name = "FlyPart"
         flyPart.Size = Vector3.new(10, 0.5, 10)
@@ -105,8 +100,6 @@ local function toggleFly(enabled)
         flyPart.Parent = workspace
         
         -- Boucle de vol
-        local moveAccumulator = Vector3.new(0, 0, 0)
-        
         flyConnection = RunService.Heartbeat:Connect(function(deltaTime)
             if not flyEnabled or not rootPart or not rootPart.Parent then return end
             
@@ -114,70 +107,67 @@ local function toggleFly(enabled)
             if not camera then return end
             
             local moveDirection = Vector3.new(0, 0, 0)
+            local verticalMove = 0
             
-            -- Detection des touches PC
+            -- Detection des touches PC (separation horizontal et vertical)
+            local horizontalMove = Vector3.new(0, 0, 0)
+            
             if UserInputService:IsKeyDown(Enum.KeyCode.W) or UserInputService:IsKeyDown(Enum.KeyCode.Z) then
-                moveDirection = moveDirection + camera.CFrame.LookVector
+                horizontalMove = horizontalMove + Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z)
             end
             if UserInputService:IsKeyDown(Enum.KeyCode.S) then
-                moveDirection = moveDirection - camera.CFrame.LookVector
+                horizontalMove = horizontalMove - Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z)
             end
             if UserInputService:IsKeyDown(Enum.KeyCode.A) or UserInputService:IsKeyDown(Enum.KeyCode.Q) then
-                moveDirection = moveDirection - camera.CFrame.RightVector
+                horizontalMove = horizontalMove - Vector3.new(camera.CFrame.RightVector.X, 0, camera.CFrame.RightVector.Z)
             end
             if UserInputService:IsKeyDown(Enum.KeyCode.D) then
-                moveDirection = moveDirection + camera.CFrame.RightVector
+                horizontalMove = horizontalMove + Vector3.new(camera.CFrame.RightVector.X, 0, camera.CFrame.RightVector.Z)
             end
+            
+            -- Mouvement vertical separe
             if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-                moveDirection = moveDirection + Vector3.new(0, 1, 0)
+                verticalMove = 1
             end
             if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) or UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
-                moveDirection = moveDirection - Vector3.new(0, 1, 0)
+                verticalMove = -1
             end
             
-            -- Support mobile
+            -- Support mobile (horizontal seulement)
             if humanoid.MoveDirection.Magnitude > 0 then
-                local cameraCFrame = camera.CFrame
                 local moveDir = humanoid.MoveDirection
-                moveDirection = moveDirection + (cameraCFrame.LookVector * moveDir.Z) + (cameraCFrame.RightVector * moveDir.X)
+                horizontalMove = horizontalMove + Vector3.new(camera.CFrame.LookVector.X * moveDir.Z, 0, camera.CFrame.LookVector.Z * moveDir.Z)
+                horizontalMove = horizontalMove + Vector3.new(camera.CFrame.RightVector.X * moveDir.X, 0, camera.CFrame.RightVector.Z * moveDir.X)
             end
             
-            -- Normaliser
+            -- Combiner horizontal et vertical
+            if horizontalMove.Magnitude > 0 then
+                horizontalMove = horizontalMove.Unit
+            end
+            
+            moveDirection = horizontalMove + Vector3.new(0, verticalMove, 0)
+            
+            -- Appliquer le mouvement
             if moveDirection.Magnitude > 0 then
-                moveDirection = moveDirection.Unit
-            end
-            
-            -- Accumuler le mouvement pour eviter les teleports detectables
-            moveAccumulator = moveAccumulator + (moveDirection * flySpeed * deltaTime)
-            
-            -- Appliquer seulement si assez de mouvement accumule (mouvement plus naturel)
-            if moveAccumulator.Magnitude > 0.1 then
-                local targetPosition = rootPart.Position + moveAccumulator
+                local targetPosition = rootPart.Position + (moveDirection * flySpeed * deltaTime)
                 
-                -- Deplacer la partie invisible sous le joueur
+                -- Deplacer la partie invisible exactement sous le joueur
                 if flyPart and flyPart.Parent then
-                    flyPart.CFrame = CFrame.new(targetPosition - Vector3.new(0, 3, 0))
+                    flyPart.CFrame = CFrame.new(targetPosition.X, targetPosition.Y - 3, targetPosition.Z)
                 end
                 
-                -- Utiliser Humanoid:MoveTo au lieu de CFrame (plus naturel)
-                humanoid:MoveTo(targetPosition)
-                
-                -- Reset l'accumulateur
-                moveAccumulator = Vector3.new(0, 0, 0)
-                
-                -- Sauvegarder la derniere position
-                lastPosition = targetPosition
+                -- Teleportation furtive par petits increments
+                rootPart.CFrame = CFrame.new(targetPosition)
             end
             
-            -- Orienter le personnage vers la camera
+            -- Orienter le personnage vers la direction de la camera (horizontal seulement)
             local lookVector = camera.CFrame.LookVector
             local targetCFrame = CFrame.new(rootPart.Position, rootPart.Position + Vector3.new(lookVector.X, 0, lookVector.Z))
-            rootPart.CFrame = rootPart.CFrame:Lerp(targetCFrame, 0.1)
+            rootPart.CFrame = CFrame.new(rootPart.Position) * targetCFrame.Rotation
             
-            -- Annuler les velocites anormales
-            if rootPart.Velocity.Magnitude > flySpeed * 2 then
-                rootPart.Velocity = Vector3.new(0, 0, 0)
-            end
+            -- Annuler les velocites
+            rootPart.Velocity = Vector3.new(0, 0, 0)
+            rootPart.RotVelocity = Vector3.new(0, 0, 0)
         end)
         
     else
@@ -215,7 +205,7 @@ local Toggle = Tab:CreateToggle({
     end,
 })
 
--- Slider vitesse (limité pour être plus discret)
+-- Slider vitesse
 local Slider = Tab:CreateSlider({
     Name = "Fly speed",
     Range = {5, 50},
