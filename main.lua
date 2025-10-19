@@ -4,7 +4,7 @@ local Window = Rayfield:CreateWindow({
    Name = "LUXEN - Emergency Hamburg",
    Icon = 0, -- Icon in Topbar. Can use Lucide Icons (string) or Roblox Image (number). 0 to use no icon (default).
    LoadingTitle = "Luxen is loading...",
-   LoadingSubtitle = "by Azfasty & ",
+   LoadingSubtitle = "by Azfa & Vamp 🧛",
    ShowText = "Luxen", -- for mobile users to unhide rayfield, change if you'd like
    Theme = "AmberGlow", -- Check https://docs.sirius.menu/rayfield/configuration/themes
 
