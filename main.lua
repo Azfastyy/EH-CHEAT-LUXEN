@@ -395,10 +395,8 @@ local function setInfiniteStamina(enabled)
     end
 end
 
-local InfStaminaToggle = Tab:CreateToggle({
+local InfStaminaToggle = Tab:CreateButton({
     Name = "Infinite Stamina",
-    CurrentValue = false,
-    Flag = "inf_stamina",
     Callback = function(Value)
         pcall(function()
             setInfiniteStamina(Value)
@@ -482,10 +480,8 @@ local function setInfiniteJump(enabled)
     end
 end
 
-local InfJumpToggle = Tab:CreateToggle({
+local InfJumpToggle = Tab:CreateButton({
     Name = "Infinite jump",
-    CurrentValue = false,
-    Flag = "inf_jump",
     Callback = function(Value)
         pcall(function()
             setInfiniteJump(Value)
