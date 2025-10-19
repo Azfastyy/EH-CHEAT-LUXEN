@@ -72,7 +72,16 @@ local Slider = Tab:CreateSlider({
    end,
 })
 
-
+local Keybind = Tab:CreateKeybind({
+   Name = "Fly keybind",
+   CurrentKeybind = "F",
+   HoldToInteract = false,
+   Flag = "fly_bind", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Callback = function(Keybind)
+   -- The function that takes place when the keybind is pressed
+   -- The variable (Keybind) is a boolean for whether the keybind is being held or not (HoldToInteract needs to be true)
+   end,
+})
 
 local Section = Tab:CreateSection("Brr")
 
