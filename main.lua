@@ -246,48 +246,254 @@ LocalPlayer.CharacterAdded:Connect(function(character)
 end)
 
 local Section = Tab:CreateSection("Utils")
-local Toggle = Tab:CreateToggle({
-   Name = "Walk speed",
-   CurrentValue = false,
-   Flag = "walk_boost", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
-   Callback = function(Value)
-   -- The function that takes place when the toggle is pressed
-   -- The variable (Value) is a boolean on whether the toggle is true or false
-   end,
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+-- Variables
+local walkSpeedEnabled = false
+local walkSpeedValue = 16
+local infStaminaEnabled = false
+local infJumpEnabled = false
+local originalWalkSpeed = 16
+
+-- Connexions
+local walkSpeedConnection = nil
+local staminaConnection = nil
+local jumpConnection = nil
+
+local Section = Tab:CreateSection("Utils")
+
+-- WALK SPEED (Undetect method)
+local function setWalkSpeed(enabled, speed)
+    walkSpeedEnabled = enabled
+    walkSpeedValue = speed
+    
+    local character = LocalPlayer.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return end
+    
+    if enabled then
+        -- Sauvegarder la vitesse originale
+        originalWalkSpeed = humanoid.WalkSpeed
+        
+        -- Methode furtive: changer progressivement
+        if walkSpeedConnection then
+            walkSpeedConnection:Disconnect()
+        end
+        
+        walkSpeedConnection = RunService.Heartbeat:Connect(function()
+            if not walkSpeedEnabled then return end
+            
+            local char = LocalPlayer.Character
+            if not char then return end
+            
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if not hum then return end
+            
+            -- Changer progressivement pour eviter detection
+            if hum.WalkSpeed ~= walkSpeedValue then
+                local diff = walkSpeedValue - hum.WalkSpeed
+                hum.WalkSpeed = hum.WalkSpeed + (diff * 0.1)
+            end
+        end)
+    else
+        -- Desactiver
+        if walkSpeedConnection then
+            walkSpeedConnection:Disconnect()
+            walkSpeedConnection = nil
+        end
+        
+        if humanoid then
+            humanoid.WalkSpeed = originalWalkSpeed
+        end
+    end
+end
+
+local WalkSpeedToggle = Tab:CreateToggle({
+    Name = "Walk speed",
+    CurrentValue = false,
+    Flag = "walk_boost",
+    Callback = function(Value)
+        pcall(function()
+            setWalkSpeed(Value, walkSpeedValue)
+        end)
+    end,
 })
 
-local Slider = Tab:CreateSlider({
-   Name = "Walk speed",
-   Range = {0, 25},
-   Increment = 1,
-   Suffix = "Speed",
-   CurrentValue = 10,
-   Flag = "walk_speed", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
-   Callback = function(Value)
-   -- The function that takes place when the slider changes
-   -- The variable (Value) is a number which correlates to the value the slider is currently at
-   end,
+local WalkSpeedSlider = Tab:CreateSlider({
+    Name = "Walk speed",
+    Range = {16, 25},
+    Increment = 1,
+    Suffix = "Speed",
+    CurrentValue = 16,
+    Flag = "walk_speed",
+    Callback = function(Value)
+        walkSpeedValue = Value
+        if walkSpeedEnabled then
+            pcall(function()
+                setWalkSpeed(true, Value)
+            end)
+        end
+    end,
 })
 
-local Toggle = Tab:CreateToggle({
-   Name = "Infinite Stamina",
-   CurrentValue = false,
-   Flag = "inf_stamina", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
-   Callback = function(Value)
-   -- The function that takes place when the toggle is pressed
-   -- The variable (Value) is a boolean on whether the toggle is true or false
-   end,
+-- INFINITE STAMINA
+local function setInfiniteStamina(enabled)
+    infStaminaEnabled = enabled
+    
+    if enabled then
+        if staminaConnection then
+            staminaConnection:Disconnect()
+        end
+        
+        staminaConnection = RunService.Heartbeat:Connect(function()
+            if not infStaminaEnabled then return end
+            
+            local character = LocalPlayer.Character
+            if not character then return end
+            
+            -- Chercher le script de stamina (peut varier selon le jeu)
+            -- Methode 1: Chercher une valeur "Stamina"
+            for _, obj in pairs(character:GetDescendants()) do
+                if obj:IsA("NumberValue") or obj:IsA("IntValue") then
+                    if obj.Name:lower():find("stamina") or obj.Name:lower():find("energy") then
+                        if obj.Value < obj.MaxValue or obj.Value < 100 then
+                            obj.Value = obj.MaxValue or 100
+                        end
+                    end
+                end
+            end
+            
+            -- Methode 2: Chercher dans le PlayerGui
+            local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+            if playerGui then
+                for _, gui in pairs(playerGui:GetDescendants()) do
+                    if gui:IsA("NumberValue") or gui:IsA("IntValue") then
+                        if gui.Name:lower():find("stamina") or gui.Name:lower():find("energy") then
+                            if gui.Value < 100 then
+                                gui.Value = 100
+                            end
+                        end
+                    end
+                end
+            end
+            
+            -- Methode 3: Empecher le ralentissement (fallback)
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                -- Si la vitesse baisse anormalement, la remonter
+                if humanoid.WalkSpeed < (walkSpeedEnabled and walkSpeedValue or originalWalkSpeed) then
+                    humanoid.WalkSpeed = walkSpeedEnabled and walkSpeedValue or originalWalkSpeed
+                end
+            end
+        end)
+    else
+        if staminaConnection then
+            staminaConnection:Disconnect()
+            staminaConnection = nil
+        end
+    end
+end
+
+local InfStaminaToggle = Tab:CreateToggle({
+    Name = "Infinite Stamina",
+    CurrentValue = false,
+    Flag = "inf_stamina",
+    Callback = function(Value)
+        pcall(function()
+            setInfiniteStamina(Value)
+        end)
+    end,
 })
 
-local Toggle = Tab:CreateToggle({
-   Name = "Infinite jump",
-   CurrentValue = false,
-   Flag = "inf_jump", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
-   Callback = function(Value)
-   -- The function that takes place when the toggle is pressed
-   -- The variable (Value) is a boolean on whether the toggle is true or false
-   end,
+-- INFINITE JUMP
+local function setInfiniteJump(enabled)
+    infJumpEnabled = enabled
+    
+    if enabled then
+        if jumpConnection then
+            jumpConnection:Disconnect()
+        end
+        
+        -- Methode 1: Ecouter l'input de saut
+        jumpConnection = UserInputService.JumpRequest:Connect(function()
+            if not infJumpEnabled then return end
+            
+            local character = LocalPlayer.Character
+            if not character then return end
+            
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                -- Forcer le saut meme si en l'air
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end)
+        
+        -- Methode 2: Bypass du cooldown (alternative)
+        spawn(function()
+            while infJumpEnabled do
+                wait()
+                local character = LocalPlayer.Character
+                if character then
+                    local humanoid = character:FindFirstChildOfClass("Humanoid")
+                    if humanoid then
+                        -- Permettre le saut meme en l'air
+                        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                            pcall(function()
+                                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                            end)
+                        end
+                    end
+                end
+            end
+        end)
+    else
+        if jumpConnection then
+            jumpConnection:Disconnect()
+            jumpConnection = nil
+        end
+    end
+end
+
+local InfJumpToggle = Tab:CreateToggle({
+    Name = "Infinite jump",
+    CurrentValue = false,
+    Flag = "inf_jump",
+    Callback = function(Value)
+        pcall(function()
+            setInfiniteJump(Value)
+        end)
+    end,
 })
+
+-- Reset tout si le personnage respawn
+LocalPlayer.CharacterAdded:Connect(function(character)
+    wait(0.5)
+    
+    -- Reactiver les features qui etaient activees
+    if walkSpeedEnabled then
+        setWalkSpeed(false, walkSpeedValue)
+        wait(0.1)
+        setWalkSpeed(true, walkSpeedValue)
+    end
+    
+    if infStaminaEnabled then
+        setInfiniteStamina(false)
+        wait(0.1)
+        setInfiniteStamina(true)
+    end
+    
+    if infJumpEnabled then
+        setInfiniteJump(false)
+        wait(0.1)
+        setInfiniteJump(true)
+    end
+end)
 
 local Tab = Window:CreateTab("🛡️｜Aimbot", 0)
 
