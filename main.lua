@@ -49,39 +49,175 @@ local Tab = Window:CreateTab("👤｜Player", 0) -- Title, Image
 
 local Section = Tab:CreateSection("Fly")
 
+-- Variables pour le Fly
+local flyEnabled = false
+local flySpeed = 10
+local flyConnection = nil
+local shiftlockEnabled = false
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+-- Fonction pour activer/desactiver le shiftlock
+local function setShiftlock(enabled)
+    if enabled then
+        LocalPlayer.DevEnableMouseLock = true
+        UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+        shiftlockEnabled = true
+    else
+        LocalPlayer.DevEnableMouseLock = false
+        UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+        shiftlockEnabled = false
+    end
+end
+
+-- Fonction principale du Fly
+local function toggleFly(enabled)
+    flyEnabled = enabled
+    local character = LocalPlayer.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    
+    if not humanoid or not rootPart then return end
+    
+    if enabled then
+        -- Activer le shiftlock
+        setShiftlock(true)
+        
+        -- Creer le BodyVelocity pour le fly
+        local bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.Name = "FlyVelocity"
+        bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+        bodyVelocity.Parent = rootPart
+        
+        local bodyGyro = Instance.new("BodyGyro")
+        bodyGyro.Name = "FlyGyro"
+        bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+        bodyGyro.P = 9000
+        bodyGyro.CFrame = rootPart.CFrame
+        bodyGyro.Parent = rootPart
+        
+        -- Desactiver la gravite
+        humanoid.PlatformStand = true
+        
+        -- Boucle de vol
+        flyConnection = RunService.Heartbeat:Connect(function()
+            if not flyEnabled then return end
+            
+            local camera = workspace.CurrentCamera
+            local moveDirection = Vector3.new(0, 0, 0)
+            
+            -- Detection des touches (PC et Mobile)
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) or UserInputService:IsKeyDown(Enum.KeyCode.Z) then
+                moveDirection = moveDirection + camera.CFrame.LookVector
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                moveDirection = moveDirection - camera.CFrame.LookVector
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) or UserInputService:IsKeyDown(Enum.KeyCode.Q) then
+                moveDirection = moveDirection - camera.CFrame.RightVector
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                moveDirection = moveDirection + camera.CFrame.RightVector
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                moveDirection = moveDirection + Vector3.new(0, 1, 0)
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) or UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+                moveDirection = moveDirection - Vector3.new(0, 1, 0)
+            end
+            
+            -- Support mobile (TouchEnabled)
+            if humanoid.MoveDirection.Magnitude > 0 then
+                local cameraCFrame = camera.CFrame
+                local moveDir = humanoid.MoveDirection
+                moveDirection = (cameraCFrame.LookVector * moveDir.Z) + (cameraCFrame.RightVector * moveDir.X)
+            end
+            
+            -- Appliquer la velocite
+            if bodyVelocity then
+                bodyVelocity.Velocity = moveDirection * flySpeed
+            end
+            
+            -- Orienter le personnage vers la camera
+            if bodyGyro then
+                bodyGyro.CFrame = camera.CFrame
+            end
+        end)
+        
+    else
+        -- Desactiver le fly
+        if flyConnection then
+            flyConnection:Disconnect()
+            flyConnection = nil
+        end
+        
+        -- Desactiver le shiftlock
+        setShiftlock(false)
+        
+        -- Supprimer les BodyVelocity et BodyGyro
+        if rootPart:FindFirstChild("FlyVelocity") then
+            rootPart.FlyVelocity:Destroy()
+        end
+        if rootPart:FindFirstChild("FlyGyro") then
+            rootPart.FlyGyro:Destroy()
+        end
+        
+        -- Reactiver la physique normale
+        humanoid.PlatformStand = false
+    end
+end
+
+-- Toggle Fly
 local Toggle = Tab:CreateToggle({
-   Name = "Fly",
-   CurrentValue = false,
-   Flag = "fly", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
-   Callback = function(Value)
-   -- The function that takes place when the toggle is pressed
-   -- The variable (Value) is a boolean on whether the toggle is true or false
-   end,
+    Name = "Fly",
+    CurrentValue = false,
+    Flag = "fly",
+    Callback = function(Value)
+        toggleFly(Value)
+    end,
 })
 
+-- Slider vitesse
 local Slider = Tab:CreateSlider({
-   Name = "Fly speed",
-   Range = {0, 100},
-   Increment = 5,
-   Suffix = "speed",
-   CurrentValue = 10,
-   Flag = "fly_speed", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
-   Callback = function(Value)
-   -- The function that takes place when the slider changes
-   -- The variable (Value) is a number which correlates to the value the slider is currently at
-   end,
+    Name = "Fly speed",
+    Range = {10, 200},
+    Increment = 5,
+    Suffix = "speed",
+    CurrentValue = 50,
+    Flag = "fly_speed",
+    Callback = function(Value)
+        flySpeed = Value
+    end,
 })
 
+-- Keybind pour toggle
 local Keybind = Tab:CreateKeybind({
-   Name = "Fly keybind",
-   CurrentKeybind = "F",
-   HoldToInteract = false,
-   Flag = "fly_bind", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
-   Callback = function(Keybind)
-   -- The function that takes place when the keybind is pressed
-   -- The variable (Keybind) is a boolean for whether the keybind is being held or not (HoldToInteract needs to be true)
-   end,
+    Name = "Fly keybind",
+    CurrentKeybind = "F",
+    HoldToInteract = false,
+    Flag = "fly_bind",
+    Callback = function()
+        flyEnabled = not flyEnabled
+        Toggle:Set(flyEnabled)
+        toggleFly(flyEnabled)
+    end,
 })
+
+-- Reset le fly si le personnage respawn
+LocalPlayer.CharacterAdded:Connect(function()
+    if flyEnabled then
+        wait(0.5)
+        toggleFly(false)
+        flyEnabled = false
+        Toggle:Set(false)
+    end
+end)
 
 local Section = Tab:CreateSection("Utils")
 local Toggle = Tab:CreateToggle({
