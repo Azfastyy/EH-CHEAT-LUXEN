@@ -908,6 +908,42 @@ local CarFlyKeybind = Tab:CreateKeybind({
     end,
 })
 
+local Section = Tab:CreateSection("Car boost")
+
+local CarMaxSpeed = Tab:CreateSlider({
+    Name = "Car Max Speed",
+    Range = {10, 480},
+    Increment = 10,
+    Suffix = "speed",
+    CurrentValue = 200,
+    Flag = "car_max_speed",
+    Callback = function(Value)
+    end,
+})
+
+local CarAccel = Tab:CreateSlider({
+    Name = "Car Acceleration",
+    Range = {0, 10000},
+    Increment = 30,
+    Suffix = "speed",
+    CurrentValue = 0,
+    Flag = "car_accel",
+    Callback = function(Value)
+    end,
+})
+
+local Toggle = Tab:CreateToggle({
+   Name = "Enable Acceleration",
+   CurrentValue = false,
+   Flag = "car_accel_toggle", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Callback = function(Value)
+   -- The function that takes place when the toggle is pressed
+   -- The variable (Value) is a boolean on whether the toggle is true or false
+   end,
+})
+
+local Section = Tab:CreateSection("Car tuning")
+
 local Tab = Window:CreateTab("🧨｜Weapon Mods", 0)
 
 local Tab = Window:CreateTab("🚀｜Teleports", 0)
