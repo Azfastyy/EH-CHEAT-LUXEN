@@ -512,13 +512,15 @@ local Section = Tab:CreateSection("Aimbot Settings")
 -- Variables globales aimbot
 local rageBotEnabled = false
 local smoothness = 3
-local magicBulletEnabled = false
 local predictionEnabled = false
 local predictionAmount = 0.13
 local targetPart = "Head"
+local rageFovSize = 200
+local rageFovVisible = true
 
 local rageBotConnection = nil
 local aimbotMobileEnabled = false
+local rageFovCircle = nil
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -526,10 +528,42 @@ local Camera = workspace.CurrentCamera
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
--- Fonction pour trouver la cible la plus proche (pour rage bot)
+-- Créer le cercle FOV RAGE BOT
+local function createRageFOVCircle()
+    pcall(function()
+        if rageFovCircle then
+            rageFovCircle:Remove()
+        end
+        
+        rageFovCircle = Drawing.new("Circle")
+        rageFovCircle.Thickness = 2
+        rageFovCircle.NumSides = 50
+        rageFovCircle.Radius = rageFovSize
+        rageFovCircle.Filled = false
+        rageFovCircle.Transparency = 1
+        rageFovCircle.Color = Color3.fromRGB(255, 0, 0)
+        rageFovCircle.Visible = rageFovVisible
+        rageFovCircle.ZIndex = 999
+    end)
+end
+
+-- Update position du cercle RAGE
+spawn(function()
+    RunService.RenderStepped:Connect(function()
+        pcall(function()
+            if rageFovCircle then
+                rageFovCircle.Position = UserInputService:GetMouseLocation()
+                rageFovCircle.Radius = rageFovSize
+                rageFovCircle.Visible = rageFovVisible and rageBotEnabled
+            end
+        end)
+    end)
+end)
+
+-- Fonction pour trouver la cible la plus proche DANS LE FOV
 local function getClosestPlayerRageBot()
     local closestPlayer = nil
-    local shortestDistance = math.huge
+    local shortestDistance = rageFovSize -- IMPORTANT: limité par FOV
     
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
@@ -540,11 +574,18 @@ local function getClosestPlayerRageBot()
             if not targetPartObj then continue end
             if not humanoid or humanoid.Health <= 0 then continue end
             
-            local distance = (targetPartObj.Position - Camera.CFrame.Position).Magnitude
+            -- VÉRIFIER SI DANS LE FOV (distance 2D écran)
+            local screenPoint, onScreen = Camera:WorldToViewportPoint(targetPartObj.Position)
             
-            if distance < shortestDistance then
-                shortestDistance = distance
-                closestPlayer = player
+            if onScreen then
+                local mousePos = UserInputService:GetMouseLocation()
+                local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - mousePos).Magnitude
+                
+                -- SEULEMENT SI DANS LE FOV!
+                if distance < shortestDistance then
+                    shortestDistance = distance
+                    closestPlayer = player
+                end
             end
         end
     end
@@ -552,7 +593,7 @@ local function getClosestPlayerRageBot()
     return closestPlayer
 end
 
--- Rage Bot (tir automatique avec smoothness)
+-- Rage Bot (tir automatique avec smoothness CORRIGÉ)
 local function startRageBot()
     if rageBotConnection then
         rageBotConnection:Disconnect()
@@ -573,21 +614,14 @@ local function startRageBot()
                     targetPos = targetPos + (targetVelocity * predictionAmount)
                 end
                 
-                -- Smoothness (plus c'est haut, moins de randomness)
-                if smoothness < 5 then
-                    local randomness = (5 - smoothness) * 0.5
-                    local randomOffset = Vector3.new(
-                        math.random(-randomness, randomness),
-                        math.random(-randomness, randomness),
-                        math.random(-randomness, randomness)
-                    )
-                    targetPos = targetPos + randomOffset
-                end
+                -- SMOOTHNESS CORRIGÉ
+                -- 1 = très smooth (lent)
+                -- 5 = instantané (rapide)
+                local smoothFactor = smoothness / 10 -- 0.1 à 0.5
                 
-                -- Viser avec smoothing
                 local currentCFrame = Camera.CFrame
                 local targetCFrame = CFrame.new(currentCFrame.Position, targetPos)
-                Camera.CFrame = currentCFrame:Lerp(targetCFrame, 0.3)
+                Camera.CFrame = currentCFrame:Lerp(targetCFrame, smoothFactor)
                 
                 -- Tirer automatiquement
                 pcall(function()
@@ -662,29 +696,7 @@ local function calculateAutoPrediction()
     end)
 end
 
--- Magic Bullet (tir à travers les murs)
-if magicBulletEnabled then
-    local oldNamecall
-    oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-        local args = {...}
-        local method = getnamecallmethod()
-        
-        if method == "FireServer" and (tostring(self):lower():find("shoot") or tostring(self):lower():find("fire")) then
-            if magicBulletEnabled then
-                local target = getClosestPlayerRageBot()
-                if target and target.Character then
-                    local targetPartObj = target.Character:FindFirstChild(targetPart)
-                    if targetPartObj then
-                        args[1] = targetPartObj.Position
-                        args[2] = targetPartObj
-                    end
-                end
-            end
-        end
-        
-        return oldNamecall(self, unpack(args))
-    end)
-end
+createRageFOVCircle()
 
 -- UI Rage Bot
 local RageBotToggle = Tab:CreateToggle({
@@ -721,6 +733,40 @@ local RageBotKeybind = Tab:CreateKeybind({
     end,
 })
 
+local RageFOVToggle = Tab:CreateToggle({
+    Name = "Show Rage FOV",
+    CurrentValue = true,
+    Flag = "rage_fov_visible",
+    Callback = function(Value)
+        rageFovVisible = Value
+    end,
+})
+
+local RageFOVSlider = Tab:CreateSlider({
+    Name = "Rage FOV Size",
+    Range = {50, 500},
+    Increment = 10,
+    Suffix = "px",
+    CurrentValue = 200,
+    Flag = "rage_fov_size",
+    Callback = function(Value)
+        rageFovSize = Value
+    end,
+})
+
+local RageFOVColorPicker = Tab:CreateColorPicker({
+    Name = "Rage FOV Color",
+    Color = Color3.fromRGB(255,0,0),
+    Flag = "rage_fov_color",
+    Callback = function(Value)
+        pcall(function()
+            if rageFovCircle then
+                rageFovCircle.Color = Value
+            end
+        end)
+    end
+})
+
 local SmoothnessSlider = Tab:CreateSlider({
     Name = "Smoothness",
     Range = {1, 5},
@@ -730,15 +776,6 @@ local SmoothnessSlider = Tab:CreateSlider({
     Flag = "smoothness",
     Callback = function(Value)
         smoothness = Value
-    end,
-})
-
-local MagicBulletToggle = Tab:CreateToggle({
-    Name = "Magic Bullet (Wallbang)",
-    CurrentValue = false,
-    Flag = "magic_bullet",
-    Callback = function(Value)
-        magicBulletEnabled = Value
     end,
 })
 
@@ -782,80 +819,86 @@ local Dropdown = Tab:CreateDropdown({
     end,
 })
 
--- AIMBOT MOBILE (Mini GUI)
+-- AIMBOT MOBILE (Mini GUI) - CORRIGÉ
 local Section3 = Tab:CreateSection("Mobile")
 
 local mobileGui = nil
 local mobileButton = nil
 
 local function createMobileGui()
-    if mobileGui then
-        mobileGui:Destroy()
-    end
-    
-    mobileGui = Instance.new("ScreenGui")
-    mobileGui.Name = "LuxenMobileAimbot"
-    mobileGui.ResetOnSpawn = false
-    mobileGui.Parent = game.CoreGui
-    
-    mobileButton = Instance.new("TextButton")
-    mobileButton.Size = UDim2.new(0, 80, 0, 80)
-    mobileButton.Position = UDim2.new(1, -100, 0.5, -40)
-    mobileButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-    mobileButton.Text = "AIM\nOFF"
-    mobileButton.TextColor3 = Color3.white
-    mobileButton.TextSize = 16
-    mobileButton.Font = Enum.Font.GothamBold
-    mobileButton.Parent = mobileGui
-    
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 10)
-    corner.Parent = mobileButton
-    
-    mobileButton.MouseButton1Click:Connect(function()
-        aimbotMobileEnabled = not aimbotMobileEnabled
-        rageBotEnabled = aimbotMobileEnabled
-        
-        if aimbotMobileEnabled then
-            mobileButton.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
-            mobileButton.Text = "AIM\nON"
-            startRageBot()
-        else
-            mobileButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-            mobileButton.Text = "AIM\nOFF"
-            if rageBotConnection then
-                rageBotConnection:Disconnect()
-            end
+    pcall(function()
+        if mobileGui then
+            mobileGui:Destroy()
         end
+        
+        mobileGui = Instance.new("ScreenGui")
+        mobileGui.Name = "LuxenMobileAimbot"
+        mobileGui.ResetOnSpawn = false
+        mobileGui.Parent = game.CoreGui
+        
+        mobileButton = Instance.new("TextButton")
+        mobileButton.Size = UDim2.new(0, 80, 0, 80)
+        mobileButton.Position = UDim2.new(1, -100, 0.5, -40)
+        mobileButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        mobileButton.Text = "AIM\nOFF"
+        mobileButton.TextColor3 = Color3.white
+        mobileButton.TextSize = 16
+        mobileButton.Font = Enum.Font.GothamBold
+        mobileButton.Parent = mobileGui
+        
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 10)
+        corner.Parent = mobileButton
+        
+        mobileButton.MouseButton1Click:Connect(function()
+            aimbotMobileEnabled = not aimbotMobileEnabled
+            rageBotEnabled = aimbotMobileEnabled
+            
+            if aimbotMobileEnabled then
+                mobileButton.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+                mobileButton.Text = "AIM\nON"
+                RageBotToggle:Set(true)
+                startRageBot()
+            else
+                mobileButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+                mobileButton.Text = "AIM\nOFF"
+                RageBotToggle:Set(false)
+                if rageBotConnection then
+                    rageBotConnection:Disconnect()
+                end
+            end
+        end)
     end)
 end
 
 local MobileAimbotButton = Tab:CreateButton({
     Name = "Toggle Mobile Aimbot GUI",
     Callback = function()
-        if mobileGui then
-            mobileGui:Destroy()
-            mobileGui = nil
-            Rayfield:Notify({
-                Title = "Mobile Aimbot",
-                Content = "GUI Hidden",
-                Duration = 2,
-                Image = 4483362458,
-            })
-        else
-            createMobileGui()
-            Rayfield:Notify({
-                Title = "Mobile Aimbot",
-                Content = "GUI Shown",
-                Duration = 2,
-                Image = 4483362458,
-            })
-        end
+        pcall(function()
+            if mobileGui then
+                mobileGui:Destroy()
+                mobileGui = nil
+                Rayfield:Notify({
+                    Title = "Mobile Aimbot",
+                    Content = "GUI Hidden",
+                    Duration = 2,
+                    Image = 4483362458,
+                })
+            else
+                createMobileGui()
+                Rayfield:Notify({
+                    Title = "Mobile Aimbot",
+                    Content = "GUI Shown - Tap button to toggle",
+                    Duration = 3,
+                    Image = 4483362458,
+                })
+            end
+        end)
     end,
 })
 
 -- ===============================
--- SILENT AIM (TAB SÉPARÉ)
+-- SILENT AIM (TAB SÉPARÉ) - CORRIGÉ
 -- ===============================
 
 local SilentTab = Window:CreateTab("🎯｜Silent Aim", 0)
@@ -868,31 +911,35 @@ local silentTeamCheck = true
 local silentAliveCheck = true
 local silentFovCircle = nil
 
--- Créer le cercle FOV Silent
+-- Créer le cercle FOV Silent REMPLI
 local function createSilentFOVCircle()
-    if silentFovCircle then
-        silentFovCircle:Remove()
-    end
-    
-    silentFovCircle = Drawing.new("Circle")
-    silentFovCircle.Thickness = 2
-    silentFovCircle.NumSides = 50
-    silentFovCircle.Radius = silentFovSize
-    silentFovCircle.Filled = false
-    silentFovCircle.Transparency = 1
-    silentFovCircle.Color = Color3.fromRGB(255, 255, 0)
-    silentFovCircle.Visible = silentFovVisible
-    silentFovCircle.ZIndex = 999
+    pcall(function()
+        if silentFovCircle then
+            silentFovCircle:Remove()
+        end
+        
+        silentFovCircle = Drawing.new("Circle")
+        silentFovCircle.Thickness = 2
+        silentFovCircle.NumSides = 50
+        silentFovCircle.Radius = silentFovSize
+        silentFovCircle.Filled = true -- REMPLI!
+        silentFovCircle.Transparency = 0.3 -- Semi-transparent
+        silentFovCircle.Color = Color3.fromRGB(255, 255, 0)
+        silentFovCircle.Visible = silentFovVisible
+        silentFovCircle.ZIndex = 999
+    end)
 end
 
 -- Update position du cercle Silent
 spawn(function()
     RunService.RenderStepped:Connect(function()
-        if silentFovCircle then
-            silentFovCircle.Position = UserInputService:GetMouseLocation()
-            silentFovCircle.Radius = silentFovSize
-            silentFovCircle.Visible = silentFovVisible and silentAimEnabled
-        end
+        pcall(function()
+            if silentFovCircle then
+                silentFovCircle.Position = UserInputService:GetMouseLocation()
+                silentFovCircle.Radius = silentFovSize
+                silentFovCircle.Visible = silentFovVisible and silentAimEnabled
+            end
+        end)
     end)
 end)
 
@@ -934,19 +981,28 @@ local function getClosestPlayerSilent()
     return closestPlayer
 end
 
--- Silent Aim Hook
+-- Silent Aim Hook CORRIGÉ (Magic Bullet inclus)
 local oldNamecallSilent
 oldNamecallSilent = hookmetamethod(game, "__namecall", function(self, ...)
     local args = {...}
     local method = getnamecallmethod()
     
-    if silentAimEnabled and method == "FireServer" and (tostring(self):lower():find("shoot") or tostring(self):lower():find("fire")) then
-        local target = getClosestPlayerSilent()
-        if target and target.Character then
-            local targetPartObj = target.Character:FindFirstChild("Head")
-            if targetPartObj then
-                args[1] = targetPartObj.Position
-                args[2] = targetPartObj
+    if silentAimEnabled and method == "FireServer" then
+        local selfName = tostring(self):lower()
+        if selfName:find("shoot") or selfName:find("fire") or selfName:find("gun") or selfName:find("bullet") then
+            local target = getClosestPlayerSilent()
+            if target and target.Character then
+                local targetPartObj = target.Character:FindFirstChild("Head")
+                if targetPartObj then
+                    -- Modifier TOUS les arguments possibles
+                    args[1] = targetPartObj.Position
+                    if args[2] then
+                        args[2] = targetPartObj
+                    end
+                    if args[3] then
+                        args[3] = targetPartObj.Position
+                    end
+                end
             end
         end
     end
@@ -957,6 +1013,15 @@ end)
 createSilentFOVCircle()
 
 -- UI Silent Aim
+local SilentToggle = SilentTab:CreateToggle({
+    Name = "Silent Aim",
+    CurrentValue = false,
+    Flag = "silent_aim",
+    Callback = function(Value)
+        silentAimEnabled = Value
+    end,
+})
+
 local SilentKeybind = SilentTab:CreateKeybind({
     Name = "Silent Aim Keybind",
     CurrentKeybind = "T",
@@ -964,6 +1029,7 @@ local SilentKeybind = SilentTab:CreateKeybind({
     Flag = "silent_keybind",
     Callback = function(Keybind)
         silentAimEnabled = not silentAimEnabled
+        SilentToggle:Set(silentAimEnabled)
         
         Rayfield:Notify({
             Title = "Silent Aim",
@@ -971,6 +1037,63 @@ local SilentKeybind = SilentTab:CreateKeybind({
             Duration = 2,
             Image = 4483362458,
         })
+    end,
+})
+
+-- MOBILE SILENT AIM BUTTON
+local mobileSilentGui = nil
+
+local function createMobileSilentGui()
+    pcall(function()
+        if mobileSilentGui then
+            mobileSilentGui:Destroy()
+        end
+        
+        mobileSilentGui = Instance.new("ScreenGui")
+        mobileSilentGui.Name = "LuxenMobileSilent"
+        mobileSilentGui.ResetOnSpawn = false
+        mobileSilentGui.Parent = game.CoreGui
+        
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(0, 80, 0, 80)
+        btn.Position = UDim2.new(1, -100, 0.5, 60) -- En dessous du rage bot
+        btn.BackgroundColor3 = Color3.fromRGB(255, 255, 50)
+        btn.Text = "SILENT\nOFF"
+        btn.TextColor3 = Color3.black
+        btn.TextSize = 14
+        btn.Font = Enum.Font.GothamBold
+        btn.Parent = mobileSilentGui
+        
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 10)
+        corner.Parent = btn
+        
+        btn.MouseButton1Click:Connect(function()
+            silentAimEnabled = not silentAimEnabled
+            SilentToggle:Set(silentAimEnabled)
+            
+            if silentAimEnabled then
+                btn.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+                btn.Text = "SILENT\nON"
+            else
+                btn.BackgroundColor3 = Color3.fromRGB(255, 255, 50)
+                btn.Text = "SILENT\nOFF"
+            end
+        end)
+    end)
+end
+
+local MobileSilentButton = SilentTab:CreateButton({
+    Name = "Toggle Mobile Silent Aim GUI",
+    Callback = function()
+        pcall(function()
+            if mobileSilentGui then
+                mobileSilentGui:Destroy()
+                mobileSilentGui = nil
+            else
+                createMobileSilentGui()
+            end
+        end)
     end,
 })
 
@@ -1000,9 +1123,11 @@ local SilentFOVColorPicker = SilentTab:CreateColorPicker({
     Color = Color3.fromRGB(255,255,0),
     Flag = "silent_fov_color",
     Callback = function(Value)
-        if silentFovCircle then
-            silentFovCircle.Color = Value
-        end
+        pcall(function()
+            if silentFovCircle then
+                silentFovCircle.Color = Value
+            end
+        end)
     end
 })
 
