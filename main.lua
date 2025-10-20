@@ -914,7 +914,7 @@ local CarMaxSpeed = Tab:CreateSlider({
     Name = "Car Max Speed",
     Range = {10, 480},
     Increment = 10,
-    Suffix = "speed",
+    Suffix = "km/h",
     CurrentValue = 200,
     Flag = "car_max_speed",
     Callback = function(Value)
@@ -925,7 +925,7 @@ local CarAccel = Tab:CreateSlider({
     Name = "Car Acceleration",
     Range = {0, 10000},
     Increment = 30,
-    Suffix = "speed",
+    Suffix = "acceleration",
     CurrentValue = 0,
     Flag = "car_accel",
     Callback = function(Value)
@@ -985,6 +985,6 @@ local Tab = Window:CreateTab("✏️｜Credits", 0)
 
 
 
-local Label = Tab:CreateLabel("Created & owned by Azfa & Vamp 🧛", 4483362458, Color3.fromRGB(255, 255, 255), false) -- Title, Icon, Color, IgnoreTheme
+local Label = Tab:CreateLabel("Created & owned by Azfa & Vamp 🧛", 0, Color3.fromRGB(255, 255, 255), false) -- Title, Icon, Color, IgnoreTheme
 
 Rayfield:LoadConfiguration()
