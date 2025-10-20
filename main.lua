@@ -528,7 +528,7 @@ local Camera = workspace.CurrentCamera
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
--- Créer le cercle FOV AU CENTRE (non rempli)
+-- Créer le cercle FOV AU CENTRE (NON REMPLI, JUSTE LES BORDS)
 local function createFOVCircle()
     pcall(function()
         if fovCircle then
@@ -539,8 +539,8 @@ local function createFOVCircle()
         fovCircle.Thickness = 2
         fovCircle.NumSides = 50
         fovCircle.Radius = fovSize
-        fovCircle.Filled = false -- PAS REMPLI
-        fovCircle.Transparency = 1
+        fovCircle.Filled = false -- PAS REMPLI!
+        fovCircle.Transparency = 1 -- Opaque
         fovCircle.Color = Color3.fromRGB(255, 0, 0)
         fovCircle.Visible = fovVisible
         fovCircle.ZIndex = 999
@@ -715,7 +715,7 @@ local RageBotKeybind = Tab:CreateKeybind({
     CurrentKeybind = "Q",
     HoldToInteract = false,
     Flag = "rage_keybind",
-    Callback = function(Keybind)
+    Callback = function()
         rageBotEnabled = not rageBotEnabled
         RageBotToggle:Set(rageBotEnabled)
         if rageBotEnabled then
@@ -816,111 +816,59 @@ local Dropdown = Tab:CreateDropdown({
     end,
 })
 
--- AIMBOT MOBILE (Mini GUI) - CORRIGÉ
+-- AIMBOT MOBILE (Mini GUI) - VERSION SIMPLIFIÉE QUI MARCHE
 local Section3 = Tab:CreateSection("Mobile")
-
-local mobileGui = nil
-
-local function createMobileGui()
-    task.spawn(function()
-        wait(0.5) -- Délai pour que le GUI charge
-        
-        pcall(function()
-            if mobileGui then
-                mobileGui:Destroy()
-            end
-            
-            mobileGui = Instance.new("ScreenGui")
-            mobileGui.Name = "LuxenMobileAimbot"
-            mobileGui.ResetOnSpawn = false
-            mobileGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-            
-            -- Essayer game.CoreGui d'abord, sinon Players.LocalPlayer:WaitForChild("PlayerGui")
-            local success = pcall(function()
-                mobileGui.Parent = game:GetService("CoreGui")
-            end)
-            
-            if not success then
-                mobileGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-            end
-            
-            local mobileButton = Instance.new("TextButton")
-            mobileButton.Size = UDim2.new(0, 80, 0, 80)
-            mobileButton.Position = UDim2.new(1, -100, 0.5, -40)
-            mobileButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-            mobileButton.Text = "AIM\nOFF"
-            mobileButton.TextColor3 = Color3.white
-            mobileButton.TextSize = 16
-            mobileButton.Font = Enum.Font.GothamBold
-            mobileButton.ZIndex = 10000
-            mobileButton.Parent = mobileGui
-            
-            local corner = Instance.new("UICorner")
-            corner.CornerRadius = UDim.new(0, 10)
-            corner.Parent = mobileButton
-            
-            -- Rendre draggable
-            local dragging = false
-            local dragInput, dragStart, startPos
-            
-            mobileButton.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                    dragging = true
-                    dragStart = input.Position
-                    startPos = mobileButton.Position
-                    
-                    input.Changed:Connect(function()
-                        if input.UserInputState == Enum.UserInputState.End then
-                            dragging = false
-                        end
-                    end)
-                end
-            end)
-            
-            mobileButton.InputChanged:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-                    dragInput = input
-                end
-            end)
-            
-            UserInputService.InputChanged:Connect(function(input)
-                if input == dragInput and dragging then
-                    local delta = input.Position - dragStart
-                    mobileButton.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-                end
-            end)
-            
-            mobileButton.MouseButton1Click:Connect(function()
-                aimbotMobileEnabled = not aimbotMobileEnabled
-                rageBotEnabled = aimbotMobileEnabled
-                
-                if aimbotMobileEnabled then
-                    mobileButton.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
-                    mobileButton.Text = "AIM\nON"
-                    RageBotToggle:Set(true)
-                    startRageBot()
-                else
-                    mobileButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-                    mobileButton.Text = "AIM\nOFF"
-                    RageBotToggle:Set(false)
-                    if rageBotConnection then
-                        rageBotConnection:Disconnect()
-                    end
-                end
-            end)
-            
-            print("Mobile GUI created successfully!")
-        end)
-    end)
-end
 
 local MobileAimbotButton = Tab:CreateButton({
     Name = "Show Mobile Aimbot Button",
     Callback = function()
-        createMobileGui()
+        -- Créer immédiatement sans pcall ni delay
+        local mobileGui = Instance.new("ScreenGui")
+        mobileGui.Name = "LuxenMobileAimbot"
+        mobileGui.ResetOnSpawn = false
+        mobileGui.IgnoreGuiInset = true
+        mobileGui.Parent = LocalPlayer.PlayerGui
+        
+        local mobileButton = Instance.new("TextButton")
+        mobileButton.Size = UDim2.new(0, 80, 0, 80)
+        mobileButton.Position = UDim2.new(0, 20, 0.5, -40)
+        mobileButton.AnchorPoint = Vector2.new(0, 0.5)
+        mobileButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        mobileButton.Text = "AIM\nOFF"
+        mobileButton.TextColor3 = Color3.white
+        mobileButton.TextSize = 18
+        mobileButton.Font = Enum.Font.GothamBold
+        mobileButton.Parent = mobileGui
+        
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 15)
+        corner.Parent = mobileButton
+        
+        local stroke = Instance.new("UIStroke")
+        stroke.Color = Color3.white
+        stroke.Thickness = 2
+        stroke.Parent = mobileButton
+        
+        mobileButton.MouseButton1Click:Connect(function()
+            rageBotEnabled = not rageBotEnabled
+            RageBotToggle:Set(rageBotEnabled)
+            
+            if rageBotEnabled then
+                mobileButton.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+                mobileButton.Text = "AIM\nON"
+                startRageBot()
+            else
+                mobileButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+                mobileButton.Text = "AIM\nOFF"
+                if rageBotConnection then
+                    rageBotConnection:Disconnect()
+                end
+            end
+        end)
+        
         Rayfield:Notify({
             Title = "Mobile Aimbot",
-            Content = "Button shown! Tap to toggle",
+            Content = "Button visible on left side!",
             Duration = 3,
             Image = 4483362458,
         })
@@ -928,7 +876,7 @@ local MobileAimbotButton = Tab:CreateButton({
 })
 
 -- ===============================
--- SILENT AIM (TAB SÉPARÉ) - CORRIGÉ
+-- SILENT AIM (TAB SÉPARÉ) - SANS LE TEXTE
 -- ===============================
 
 local SilentTab = Window:CreateTab("🎯｜Silent Aim", 0)
@@ -1101,100 +1049,54 @@ local SilentKeybind = SilentTab:CreateKeybind({
     end,
 })
 
--- MOBILE SILENT AIM BUTTON
-local mobileSilentGui = nil
-
-local function createMobileSilentGui()
-    task.spawn(function()
-        wait(0.5)
-        
-        pcall(function()
-            if mobileSilentGui then
-                mobileSilentGui:Destroy()
-            end
-            
-            mobileSilentGui = Instance.new("ScreenGui")
-            mobileSilentGui.Name = "LuxenMobileSilent"
-            mobileSilentGui.ResetOnSpawn = false
-            mobileSilentGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-            
-            local success = pcall(function()
-                mobileSilentGui.Parent = game:GetService("CoreGui")
-            end)
-            
-            if not success then
-                mobileSilentGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-            end
-            
-            local btn = Instance.new("TextButton")
-            btn.Size = UDim2.new(0, 80, 0, 80)
-            btn.Position = UDim2.new(1, -100, 0.5, 60)
-            btn.BackgroundColor3 = Color3.fromRGB(255, 255, 50)
-            btn.Text = "SILENT\nOFF"
-            btn.TextColor3 = Color3.black
-            btn.TextSize = 14
-            btn.Font = Enum.Font.GothamBold
-            btn.ZIndex = 10000
-            btn.Parent = mobileSilentGui
-            
-            local corner = Instance.new("UICorner")
-            corner.CornerRadius = UDim.new(0, 10)
-            corner.Parent = btn
-            
-            -- Draggable
-            local dragging = false
-            local dragInput, dragStart, startPos
-            
-            btn.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                    dragging = true
-                    dragStart = input.Position
-                    startPos = btn.Position
-                    
-                    input.Changed:Connect(function()
-                        if input.UserInputState == Enum.UserInputState.End then
-                            dragging = false
-                        end
-                    end)
-                end
-            end)
-            
-            btn.InputChanged:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-                    dragInput = input
-                end
-            end)
-            
-            UserInputService.InputChanged:Connect(function(input)
-                if input == dragInput and dragging then
-                    local delta = input.Position - dragStart
-                    btn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-                end
-            end)
-            
-            btn.MouseButton1Click:Connect(function()
-                silentAimEnabled = not silentAimEnabled
-                SilentToggle:Set(silentAimEnabled)
-                
-                if silentAimEnabled then
-                    btn.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-                    btn.Text = "SILENT\nON"
-                else
-                    btn.BackgroundColor3 = Color3.fromRGB(255, 255, 50)
-                    btn.Text = "SILENT\nOFF"
-                end
-            end)
-        end)
-    end)
-end
-
+-- MOBILE SILENT AIM BUTTON - VERSION SIMPLIFIÉE
 local MobileSilentButton = SilentTab:CreateButton({
     Name = "Show Mobile Silent Aim Button",
     Callback = function()
-        createMobileSilentGui()
+        local mobileSilentGui = Instance.new("ScreenGui")
+        mobileSilentGui.Name = "LuxenMobileSilent"
+        mobileSilentGui.ResetOnSpawn = false
+        mobileSilentGui.IgnoreGuiInset = true
+        mobileSilentGui.Parent = LocalPlayer.PlayerGui
+        
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(0, 80, 0, 80)
+        btn.Position = UDim2.new(0, 20, 0.5, 60)
+        btn.AnchorPoint = Vector2.new(0, 0.5)
+        btn.BackgroundColor3 = Color3.fromRGB(255, 255, 50)
+        btn.Text = "SILENT\nOFF"
+        btn.TextColor3 = Color3.black
+        btn.TextSize = 16
+        btn.Font = Enum.Font.GothamBold
+        btn.Parent = mobileSilentGui
+        
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 15)
+        corner.Parent = btn
+        
+        local stroke = Instance.new("UIStroke")
+        stroke.Color = Color3.white
+        stroke.Thickness = 2
+        stroke.Parent = btn
+        
+        btn.MouseButton1Click:Connect(function()
+            silentAimEnabled = not silentAimEnabled
+            SilentToggle:Set(silentAimEnabled)
+            
+            if silentAimEnabled then
+                btn.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+                btn.Text = "SILENT\nON"
+                btn.TextColor3 = Color3.white
+            else
+                btn.BackgroundColor3 = Color3.fromRGB(255, 255, 50)
+                btn.Text = "SILENT\nOFF"
+                btn.TextColor3 = Color3.black
+            end
+        end)
+        
         Rayfield:Notify({
             Title = "Mobile Silent Aim",
-            Content = "Button shown! Tap to toggle",
+            Content = "Button visible on left side!",
             Duration = 3,
             Image = 4483362458,
         })
