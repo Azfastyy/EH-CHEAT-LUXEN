@@ -983,4 +983,6 @@ local Tab = Window:CreateTab("📦｜Miscs", 0)
 
 local Tab = Window:CreateTab("✏️｜Credits", 0)
 
+Label:Set("Created & owner by Azfa & Vamp 🧛", 4483362458, Color3.fromRGB(255, 255, 255), false) -- Title, Icon, Color, IgnoreTheme
+
 Rayfield:LoadConfiguration()
