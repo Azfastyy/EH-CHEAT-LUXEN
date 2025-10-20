@@ -515,12 +515,12 @@ local smoothness = 3
 local predictionEnabled = false
 local predictionAmount = 0.13
 local targetPart = "Head"
-local rageFovSize = 200
-local rageFovVisible = true
+local fovSize = 200
+local fovVisible = true
 
 local rageBotConnection = nil
 local aimbotMobileEnabled = false
-local rageFovCircle = nil
+local fovCircle = nil
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -528,42 +528,46 @@ local Camera = workspace.CurrentCamera
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
--- Créer le cercle FOV RAGE BOT
-local function createRageFOVCircle()
+-- Créer le cercle FOV AU CENTRE (non rempli)
+local function createFOVCircle()
     pcall(function()
-        if rageFovCircle then
-            rageFovCircle:Remove()
+        if fovCircle then
+            fovCircle:Remove()
         end
         
-        rageFovCircle = Drawing.new("Circle")
-        rageFovCircle.Thickness = 2
-        rageFovCircle.NumSides = 50
-        rageFovCircle.Radius = rageFovSize
-        rageFovCircle.Filled = false
-        rageFovCircle.Transparency = 1
-        rageFovCircle.Color = Color3.fromRGB(255, 0, 0)
-        rageFovCircle.Visible = rageFovVisible
-        rageFovCircle.ZIndex = 999
+        fovCircle = Drawing.new("Circle")
+        fovCircle.Thickness = 2
+        fovCircle.NumSides = 50
+        fovCircle.Radius = fovSize
+        fovCircle.Filled = false -- PAS REMPLI
+        fovCircle.Transparency = 1
+        fovCircle.Color = Color3.fromRGB(255, 0, 0)
+        fovCircle.Visible = fovVisible
+        fovCircle.ZIndex = 999
     end)
 end
 
--- Update position du cercle RAGE
+-- Update position du cercle AU CENTRE DE L'ÉCRAN
 spawn(function()
     RunService.RenderStepped:Connect(function()
         pcall(function()
-            if rageFovCircle then
-                rageFovCircle.Position = UserInputService:GetMouseLocation()
-                rageFovCircle.Radius = rageFovSize
-                rageFovCircle.Visible = rageFovVisible and rageBotEnabled
+            if fovCircle then
+                local screenSize = Camera.ViewportSize
+                fovCircle.Position = Vector2.new(screenSize.X / 2, screenSize.Y / 2) -- CENTRE!
+                fovCircle.Radius = fovSize
+                fovCircle.Visible = fovVisible and rageBotEnabled
             end
         end)
     end)
 end)
 
--- Fonction pour trouver la cible la plus proche DANS LE FOV
+-- Fonction pour trouver la cible la plus proche DANS LE FOV (depuis le centre)
 local function getClosestPlayerRageBot()
     local closestPlayer = nil
-    local shortestDistance = rageFovSize -- IMPORTANT: limité par FOV
+    local shortestDistance = fovSize
+    
+    local screenSize = Camera.ViewportSize
+    local screenCenter = Vector2.new(screenSize.X / 2, screenSize.Y / 2)
     
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
@@ -574,14 +578,11 @@ local function getClosestPlayerRageBot()
             if not targetPartObj then continue end
             if not humanoid or humanoid.Health <= 0 then continue end
             
-            -- VÉRIFIER SI DANS LE FOV (distance 2D écran)
             local screenPoint, onScreen = Camera:WorldToViewportPoint(targetPartObj.Position)
             
             if onScreen then
-                local mousePos = UserInputService:GetMouseLocation()
-                local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - mousePos).Magnitude
+                local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - screenCenter).Magnitude
                 
-                -- SEULEMENT SI DANS LE FOV!
                 if distance < shortestDistance then
                     shortestDistance = distance
                     closestPlayer = player
@@ -593,7 +594,7 @@ local function getClosestPlayerRageBot()
     return closestPlayer
 end
 
--- Rage Bot (tir automatique avec smoothness CORRIGÉ)
+-- Rage Bot (tir automatique avec smoothness)
 local function startRageBot()
     if rageBotConnection then
         rageBotConnection:Disconnect()
@@ -614,10 +615,8 @@ local function startRageBot()
                     targetPos = targetPos + (targetVelocity * predictionAmount)
                 end
                 
-                -- SMOOTHNESS CORRIGÉ
-                -- 1 = très smooth (lent)
-                -- 5 = instantané (rapide)
-                local smoothFactor = smoothness / 10 -- 0.1 à 0.5
+                -- Smoothness: 1 = très smooth, 5 = instantané
+                local smoothFactor = smoothness / 10
                 
                 local currentCFrame = Camera.CFrame
                 local targetCFrame = CFrame.new(currentCFrame.Position, targetPos)
@@ -627,7 +626,6 @@ local function startRageBot()
                 pcall(function()
                     local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
                     if tool then
-                        -- Chercher l'event de tir
                         for _, v in pairs(tool:GetDescendants()) do
                             if v:IsA("RemoteEvent") and (v.Name:lower():find("shoot") or v.Name:lower():find("fire")) then
                                 v:FireServer(targetPos, targetPartObj)
@@ -664,7 +662,6 @@ local function calculateAutoPrediction()
             return
         end
         
-        -- Échantillonner la vitesse sur 1 seconde
         for i = 1, 10 do
             if target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
                 local velocity = target.Character.HumanoidRootPart.Velocity.Magnitude
@@ -673,16 +670,14 @@ local function calculateAutoPrediction()
             end
         end
         
-        -- Calculer la moyenne
         local avgVelocity = 0
         for _, v in pairs(samples) do
             avgVelocity = avgVelocity + v
         end
         avgVelocity = avgVelocity / #samples
         
-        -- Calculer la prédiction basée sur la distance
         local distance = (target.Character.HumanoidRootPart.Position - Camera.CFrame.Position).Magnitude
-        local bulletSpeed = 1000 -- Ajuste selon le jeu
+        local bulletSpeed = 1000
         local travelTime = distance / bulletSpeed
         
         predictionAmount = travelTime * (avgVelocity / 100)
@@ -696,7 +691,7 @@ local function calculateAutoPrediction()
     end)
 end
 
-createRageFOVCircle()
+createFOVCircle()
 
 -- UI Rage Bot
 local RageBotToggle = Tab:CreateToggle({
@@ -733,35 +728,37 @@ local RageBotKeybind = Tab:CreateKeybind({
     end,
 })
 
-local RageFOVToggle = Tab:CreateToggle({
-    Name = "Show Rage FOV",
+local Section1_5 = Tab:CreateSection("FOV Settings")
+
+local FOVToggle = Tab:CreateToggle({
+    Name = "Show FOV",
     CurrentValue = true,
-    Flag = "rage_fov_visible",
+    Flag = "fov_visible",
     Callback = function(Value)
-        rageFovVisible = Value
+        fovVisible = Value
     end,
 })
 
-local RageFOVSlider = Tab:CreateSlider({
-    Name = "Rage FOV Size",
+local FOVSlider = Tab:CreateSlider({
+    Name = "FOV Size",
     Range = {50, 500},
     Increment = 10,
     Suffix = "px",
     CurrentValue = 200,
-    Flag = "rage_fov_size",
+    Flag = "fov_size",
     Callback = function(Value)
-        rageFovSize = Value
+        fovSize = Value
     end,
 })
 
-local RageFOVColorPicker = Tab:CreateColorPicker({
-    Name = "Rage FOV Color",
+local FOVColorPicker = Tab:CreateColorPicker({
+    Name = "FOV Color",
     Color = Color3.fromRGB(255,0,0),
-    Flag = "rage_fov_color",
+    Flag = "fov_color",
     Callback = function(Value)
         pcall(function()
-            if rageFovCircle then
-                rageFovCircle.Color = Value
+            if fovCircle then
+                fovCircle.Color = Value
             end
         end)
     end
@@ -823,77 +820,110 @@ local Dropdown = Tab:CreateDropdown({
 local Section3 = Tab:CreateSection("Mobile")
 
 local mobileGui = nil
-local mobileButton = nil
 
 local function createMobileGui()
-    pcall(function()
-        if mobileGui then
-            mobileGui:Destroy()
-        end
+    task.spawn(function()
+        wait(0.5) -- Délai pour que le GUI charge
         
-        mobileGui = Instance.new("ScreenGui")
-        mobileGui.Name = "LuxenMobileAimbot"
-        mobileGui.ResetOnSpawn = false
-        mobileGui.Parent = game.CoreGui
-        
-        mobileButton = Instance.new("TextButton")
-        mobileButton.Size = UDim2.new(0, 80, 0, 80)
-        mobileButton.Position = UDim2.new(1, -100, 0.5, -40)
-        mobileButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-        mobileButton.Text = "AIM\nOFF"
-        mobileButton.TextColor3 = Color3.white
-        mobileButton.TextSize = 16
-        mobileButton.Font = Enum.Font.GothamBold
-        mobileButton.Parent = mobileGui
-        
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 10)
-        corner.Parent = mobileButton
-        
-        mobileButton.MouseButton1Click:Connect(function()
-            aimbotMobileEnabled = not aimbotMobileEnabled
-            rageBotEnabled = aimbotMobileEnabled
-            
-            if aimbotMobileEnabled then
-                mobileButton.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
-                mobileButton.Text = "AIM\nON"
-                RageBotToggle:Set(true)
-                startRageBot()
-            else
-                mobileButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-                mobileButton.Text = "AIM\nOFF"
-                RageBotToggle:Set(false)
-                if rageBotConnection then
-                    rageBotConnection:Disconnect()
-                end
+        pcall(function()
+            if mobileGui then
+                mobileGui:Destroy()
             end
+            
+            mobileGui = Instance.new("ScreenGui")
+            mobileGui.Name = "LuxenMobileAimbot"
+            mobileGui.ResetOnSpawn = false
+            mobileGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+            
+            -- Essayer game.CoreGui d'abord, sinon Players.LocalPlayer:WaitForChild("PlayerGui")
+            local success = pcall(function()
+                mobileGui.Parent = game:GetService("CoreGui")
+            end)
+            
+            if not success then
+                mobileGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+            end
+            
+            local mobileButton = Instance.new("TextButton")
+            mobileButton.Size = UDim2.new(0, 80, 0, 80)
+            mobileButton.Position = UDim2.new(1, -100, 0.5, -40)
+            mobileButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+            mobileButton.Text = "AIM\nOFF"
+            mobileButton.TextColor3 = Color3.white
+            mobileButton.TextSize = 16
+            mobileButton.Font = Enum.Font.GothamBold
+            mobileButton.ZIndex = 10000
+            mobileButton.Parent = mobileGui
+            
+            local corner = Instance.new("UICorner")
+            corner.CornerRadius = UDim.new(0, 10)
+            corner.Parent = mobileButton
+            
+            -- Rendre draggable
+            local dragging = false
+            local dragInput, dragStart, startPos
+            
+            mobileButton.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    dragging = true
+                    dragStart = input.Position
+                    startPos = mobileButton.Position
+                    
+                    input.Changed:Connect(function()
+                        if input.UserInputState == Enum.UserInputState.End then
+                            dragging = false
+                        end
+                    end)
+                end
+            end)
+            
+            mobileButton.InputChanged:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+                    dragInput = input
+                end
+            end)
+            
+            UserInputService.InputChanged:Connect(function(input)
+                if input == dragInput and dragging then
+                    local delta = input.Position - dragStart
+                    mobileButton.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+                end
+            end)
+            
+            mobileButton.MouseButton1Click:Connect(function()
+                aimbotMobileEnabled = not aimbotMobileEnabled
+                rageBotEnabled = aimbotMobileEnabled
+                
+                if aimbotMobileEnabled then
+                    mobileButton.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+                    mobileButton.Text = "AIM\nON"
+                    RageBotToggle:Set(true)
+                    startRageBot()
+                else
+                    mobileButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+                    mobileButton.Text = "AIM\nOFF"
+                    RageBotToggle:Set(false)
+                    if rageBotConnection then
+                        rageBotConnection:Disconnect()
+                    end
+                end
+            end)
+            
+            print("Mobile GUI created successfully!")
         end)
     end)
 end
 
 local MobileAimbotButton = Tab:CreateButton({
-    Name = "Toggle Mobile Aimbot GUI",
+    Name = "Show Mobile Aimbot Button",
     Callback = function()
-        pcall(function()
-            if mobileGui then
-                mobileGui:Destroy()
-                mobileGui = nil
-                Rayfield:Notify({
-                    Title = "Mobile Aimbot",
-                    Content = "GUI Hidden",
-                    Duration = 2,
-                    Image = 4483362458,
-                })
-            else
-                createMobileGui()
-                Rayfield:Notify({
-                    Title = "Mobile Aimbot",
-                    Content = "GUI Shown - Tap button to toggle",
-                    Duration = 3,
-                    Image = 4483362458,
-                })
-            end
-        end)
+        createMobileGui()
+        Rayfield:Notify({
+            Title = "Mobile Aimbot",
+            Content = "Button shown! Tap to toggle",
+            Duration = 3,
+            Image = 4483362458,
+        })
     end,
 })
 
@@ -910,8 +940,9 @@ local silentFovVisible = false
 local silentTeamCheck = true
 local silentAliveCheck = true
 local silentFovCircle = nil
+local silentStatusLabel = nil
 
--- Créer le cercle FOV Silent REMPLI
+-- Créer le cercle FOV Silent REMPLI AU CENTRE
 local function createSilentFOVCircle()
     pcall(function()
         if silentFovCircle then
@@ -922,31 +953,69 @@ local function createSilentFOVCircle()
         silentFovCircle.Thickness = 2
         silentFovCircle.NumSides = 50
         silentFovCircle.Radius = silentFovSize
-        silentFovCircle.Filled = true -- REMPLI!
-        silentFovCircle.Transparency = 0.3 -- Semi-transparent
+        silentFovCircle.Filled = true -- REMPLI
+        silentFovCircle.Transparency = 0.15 -- Semi-transparent
         silentFovCircle.Color = Color3.fromRGB(255, 255, 0)
         silentFovCircle.Visible = silentFovVisible
-        silentFovCircle.ZIndex = 999
+        silentFovCircle.ZIndex = 998
     end)
 end
 
--- Update position du cercle Silent
+-- Créer le label de statut AU CENTRE
+local function createSilentStatusLabel()
+    pcall(function()
+        if silentStatusLabel then
+            silentStatusLabel:Remove()
+        end
+        
+        silentStatusLabel = Drawing.new("Text")
+        silentStatusLabel.Text = "INACTIVE"
+        silentStatusLabel.Size = 18
+        silentStatusLabel.Center = true
+        silentStatusLabel.Outline = true
+        silentStatusLabel.Color = Color3.fromRGB(255, 0, 0)
+        silentStatusLabel.Visible = false
+        silentStatusLabel.ZIndex = 1000
+        silentStatusLabel.Font = 2
+    end)
+end
+
+-- Update position du cercle Silent AU CENTRE
 spawn(function()
     RunService.RenderStepped:Connect(function()
         pcall(function()
+            local screenSize = Camera.ViewportSize
+            local centerPos = Vector2.new(screenSize.X / 2, screenSize.Y / 2)
+            
             if silentFovCircle then
-                silentFovCircle.Position = UserInputService:GetMouseLocation()
+                silentFovCircle.Position = centerPos
                 silentFovCircle.Radius = silentFovSize
-                silentFovCircle.Visible = silentFovVisible and silentAimEnabled
+                silentFovCircle.Visible = silentFovVisible
+            end
+            
+            if silentStatusLabel then
+                silentStatusLabel.Position = Vector2.new(centerPos.X, centerPos.Y + 30)
+                silentStatusLabel.Visible = silentFovVisible
+                
+                if silentAimEnabled then
+                    silentStatusLabel.Text = "ACTIVE"
+                    silentStatusLabel.Color = Color3.fromRGB(0, 255, 0)
+                else
+                    silentStatusLabel.Text = "INACTIVE"
+                    silentStatusLabel.Color = Color3.fromRGB(255, 0, 0)
+                end
             end
         end)
     end)
 end)
 
--- Fonction pour trouver la cible la plus proche (Silent Aim)
+-- Fonction pour trouver la cible la plus proche (Silent Aim) depuis le centre
 local function getClosestPlayerSilent()
     local closestPlayer = nil
     local shortestDistance = silentFovSize
+    
+    local screenSize = Camera.ViewportSize
+    local screenCenter = Vector2.new(screenSize.X / 2, screenSize.Y / 2)
     
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
@@ -967,8 +1036,7 @@ local function getClosestPlayerSilent()
             local screenPoint, onScreen = Camera:WorldToViewportPoint(targetPartObj.Position)
             
             if onScreen then
-                local mousePos = UserInputService:GetMouseLocation()
-                local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - mousePos).Magnitude
+                local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - screenCenter).Magnitude
                 
                 if distance < shortestDistance then
                     shortestDistance = distance
@@ -981,7 +1049,7 @@ local function getClosestPlayerSilent()
     return closestPlayer
 end
 
--- Silent Aim Hook CORRIGÉ (Magic Bullet inclus)
+-- Silent Aim Hook
 local oldNamecallSilent
 oldNamecallSilent = hookmetamethod(game, "__namecall", function(self, ...)
     local args = {...}
@@ -994,7 +1062,6 @@ oldNamecallSilent = hookmetamethod(game, "__namecall", function(self, ...)
             if target and target.Character then
                 local targetPartObj = target.Character:FindFirstChild("Head")
                 if targetPartObj then
-                    -- Modifier TOUS les arguments possibles
                     args[1] = targetPartObj.Position
                     if args[2] then
                         args[2] = targetPartObj
@@ -1011,6 +1078,7 @@ oldNamecallSilent = hookmetamethod(game, "__namecall", function(self, ...)
 end)
 
 createSilentFOVCircle()
+createSilentStatusLabel()
 
 -- UI Silent Aim
 local SilentToggle = SilentTab:CreateToggle({
@@ -1023,20 +1091,13 @@ local SilentToggle = SilentTab:CreateToggle({
 })
 
 local SilentKeybind = SilentTab:CreateKeybind({
-    Name = "Silent Aim Keybind",
+    Name = "Silent Aim Toggle Keybind",
     CurrentKeybind = "T",
     HoldToInteract = false,
     Flag = "silent_keybind",
-    Callback = function(Keybind)
+    Callback = function()
         silentAimEnabled = not silentAimEnabled
         SilentToggle:Set(silentAimEnabled)
-        
-        Rayfield:Notify({
-            Title = "Silent Aim",
-            Content = silentAimEnabled and "Enabled" or "Disabled",
-            Duration = 2,
-            Image = 4483362458,
-        })
     end,
 })
 
@@ -1044,56 +1105,99 @@ local SilentKeybind = SilentTab:CreateKeybind({
 local mobileSilentGui = nil
 
 local function createMobileSilentGui()
-    pcall(function()
-        if mobileSilentGui then
-            mobileSilentGui:Destroy()
-        end
+    task.spawn(function()
+        wait(0.5)
         
-        mobileSilentGui = Instance.new("ScreenGui")
-        mobileSilentGui.Name = "LuxenMobileSilent"
-        mobileSilentGui.ResetOnSpawn = false
-        mobileSilentGui.Parent = game.CoreGui
-        
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0, 80, 0, 80)
-        btn.Position = UDim2.new(1, -100, 0.5, 60) -- En dessous du rage bot
-        btn.BackgroundColor3 = Color3.fromRGB(255, 255, 50)
-        btn.Text = "SILENT\nOFF"
-        btn.TextColor3 = Color3.black
-        btn.TextSize = 14
-        btn.Font = Enum.Font.GothamBold
-        btn.Parent = mobileSilentGui
-        
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 10)
-        corner.Parent = btn
-        
-        btn.MouseButton1Click:Connect(function()
-            silentAimEnabled = not silentAimEnabled
-            SilentToggle:Set(silentAimEnabled)
-            
-            if silentAimEnabled then
-                btn.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-                btn.Text = "SILENT\nON"
-            else
-                btn.BackgroundColor3 = Color3.fromRGB(255, 255, 50)
-                btn.Text = "SILENT\nOFF"
+        pcall(function()
+            if mobileSilentGui then
+                mobileSilentGui:Destroy()
             end
+            
+            mobileSilentGui = Instance.new("ScreenGui")
+            mobileSilentGui.Name = "LuxenMobileSilent"
+            mobileSilentGui.ResetOnSpawn = false
+            mobileSilentGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+            
+            local success = pcall(function()
+                mobileSilentGui.Parent = game:GetService("CoreGui")
+            end)
+            
+            if not success then
+                mobileSilentGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+            end
+            
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(0, 80, 0, 80)
+            btn.Position = UDim2.new(1, -100, 0.5, 60)
+            btn.BackgroundColor3 = Color3.fromRGB(255, 255, 50)
+            btn.Text = "SILENT\nOFF"
+            btn.TextColor3 = Color3.black
+            btn.TextSize = 14
+            btn.Font = Enum.Font.GothamBold
+            btn.ZIndex = 10000
+            btn.Parent = mobileSilentGui
+            
+            local corner = Instance.new("UICorner")
+            corner.CornerRadius = UDim.new(0, 10)
+            corner.Parent = btn
+            
+            -- Draggable
+            local dragging = false
+            local dragInput, dragStart, startPos
+            
+            btn.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                    dragging = true
+                    dragStart = input.Position
+                    startPos = btn.Position
+                    
+                    input.Changed:Connect(function()
+                        if input.UserInputState == Enum.UserInputState.End then
+                            dragging = false
+                        end
+                    end)
+                end
+            end)
+            
+            btn.InputChanged:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+                    dragInput = input
+                end
+            end)
+            
+            UserInputService.InputChanged:Connect(function(input)
+                if input == dragInput and dragging then
+                    local delta = input.Position - dragStart
+                    btn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+                end
+            end)
+            
+            btn.MouseButton1Click:Connect(function()
+                silentAimEnabled = not silentAimEnabled
+                SilentToggle:Set(silentAimEnabled)
+                
+                if silentAimEnabled then
+                    btn.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+                    btn.Text = "SILENT\nON"
+                else
+                    btn.BackgroundColor3 = Color3.fromRGB(255, 255, 50)
+                    btn.Text = "SILENT\nOFF"
+                end
+            end)
         end)
     end)
 end
 
 local MobileSilentButton = SilentTab:CreateButton({
-    Name = "Toggle Mobile Silent Aim GUI",
+    Name = "Show Mobile Silent Aim Button",
     Callback = function()
-        pcall(function()
-            if mobileSilentGui then
-                mobileSilentGui:Destroy()
-                mobileSilentGui = nil
-            else
-                createMobileSilentGui()
-            end
-        end)
+        createMobileSilentGui()
+        Rayfield:Notify({
+            Title = "Mobile Silent Aim",
+            Content = "Button shown! Tap to toggle",
+            Duration = 3,
+            Image = 4483362458,
+        })
     end,
 })
 
