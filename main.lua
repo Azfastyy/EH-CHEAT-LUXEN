@@ -672,7 +672,7 @@ createFOVCircle()
 
 -- UI Aimbot
 local AimbotToggle = Tab:CreateToggle({
-    Name = "Aimbot",
+    Name = "Enable Aimbot",
     CurrentValue = false,
     Flag = "aimbot_enabled",
     Callback = function(Value)
@@ -812,6 +812,14 @@ local Toggle = Tab:CreateToggle({
    end,
 })
 
+local NamesColorPicker = Tab:CreateColorPicker({
+    Name = "Names Color",
+    Color = Color3.fromRGB(255,255,255),
+    Flag = "names_color",
+    Callback = function(Value)
+    end
+})
+
 local Toggle = Tab:CreateToggle({
    Name = "ESP distance (stunds)",
    CurrentValue = false,
@@ -822,7 +830,83 @@ local Toggle = Tab:CreateToggle({
    end,
 })
 
+local DistanceColorPicker = Tab:CreateColorPicker({
+    Name = "Distance Color",
+    Color = Color3.fromRGB(255,255,255),
+    Flag = "distance_color",
+    Callback = function(Value)
+    end
+})
+
+local Toggle = Tab:CreateToggle({
+   Name = "ESP Lines",
+   CurrentValue = false,
+   Flag = "esp_line", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Callback = function(Value)
+   -- The function that takes place when the toggle is pressed
+   -- The variable (Value) is a boolean on whether the toggle is true or false
+   end,
+})
+
+local LinesColorPicker = Tab:CreateColorPicker({
+    Name = "Lines Color",
+    Color = Color3.fromRGB(255,255,255),
+    Flag = "lines_color",
+    Callback = function(Value)
+    end
+})
+
+local Toggle = Tab:CreateToggle({
+   Name = "ESP Skeleton",
+   CurrentValue = false,
+   Flag = "esp_skeleton", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Callback = function(Value)
+   -- The function that takes place when the toggle is pressed
+   -- The variable (Value) is a boolean on whether the toggle is true or false
+   end,
+})
+
+local SKEColorPicker = Tab:CreateColorPicker({
+    Name = "Skeleton Color",
+    Color = Color3.fromRGB(255,255,255),
+    Flag = "skeleton_color",
+    Callback = function(Value)
+    end
+})
+
 local Tab = Window:CreateTab("🏎️｜Car Mods", 0)
+
+local Section = Tab:CreateSection("Car Fly")
+
+local Toggle = Tab:CreateToggle({
+   Name = "Car fly",
+   CurrentValue = false,
+   Flag = "car_fly", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Callback = function(Value)
+   -- The function that takes place when the toggle is pressed
+   -- The variable (Value) is a boolean on whether the toggle is true or false
+   end,
+})
+
+local CarFlySpeed = Tab:CreateSlider({
+    Name = "Car Fly Speed",
+    Range = {50, 500},
+    Increment = 10,
+    Suffix = "speed",
+    CurrentValue = 120,
+    Flag = "fly_speed",
+    Callback = function(Value)
+    end,
+})
+
+local CarFlyKeybind = Tab:CreateKeybind({
+    Name = "Car Fly Keybind",
+    CurrentKeybind = "K",
+    HoldToInteract = false,
+    Flag = "car_fly_keybind",
+    Callback = function(Keybind)
+    end,
+})
 
 local Tab = Window:CreateTab("🧨｜Weapon Mods", 0)
 
