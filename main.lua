@@ -508,6 +508,298 @@ end)
 
 local Tab = Window:CreateTab("🛡️｜Aimbot", 0)
 
+
+-- [PARTIE AIMBOT - À ajouter après la ligne "local Tab = Window:CreateTab("🛡️｜Aimbot", 0)"]
+
+local Section = Tab:CreateSection("Aimbot Settings")
+
+-- Variables globales aimbot
+local aimbotEnabled = false
+local silentAimEnabled = false
+local rageBotEnabled = false
+local aimbotMobile = false
+local fovSize = 150
+local fovVisible = false
+local teamCheck = true
+local aliveCheck = true
+local targetPart = "Head"
+
+local fovCircle = nil
+local aimbotConnection = nil
+local rageBotConnection = nil
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+-- Créer le cercle FOV
+local function createFOVCircle()
+    if fovCircle then
+        fovCircle:Remove()
+    end
+    
+    fovCircle = Drawing.new("Circle")
+    fovCircle.Thickness = 2
+    fovCircle.NumSides = 50
+    fovCircle.Radius = fovSize
+    fovCircle.Filled = false
+    fovCircle.Transparency = 1
+    fovCircle.Color = Color3.fromRGB(255, 255, 255)
+    fovCircle.Visible = fovVisible
+    fovCircle.ZIndex = 999
+end
+
+-- Update position du cercle
+spawn(function()
+    RunService.RenderStepped:Connect(function()
+        if fovCircle then
+            fovCircle.Position = UserInputService:GetMouseLocation()
+            fovCircle.Radius = fovSize
+            fovCircle.Visible = fovVisible and (aimbotEnabled or silentAimEnabled)
+        end
+    end)
+end)
+
+-- Fonction pour trouver la cible la plus proche
+local function getClosestPlayer()
+    local closestPlayer = nil
+    local shortestDistance = fovSize
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            -- Team check
+            if teamCheck and player.Team == LocalPlayer.Team then
+                continue
+            end
+            
+            local character = player.Character
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            local targetPartObj = character:FindFirstChild(targetPart)
+            
+            if not targetPartObj then continue end
+            
+            -- Alive check
+            if aliveCheck and (not humanoid or humanoid.Health <= 0) then
+                continue
+            end
+            
+            local screenPoint, onScreen = Camera:WorldToViewportPoint(targetPartObj.Position)
+            
+            if onScreen then
+                local mousePos = UserInputService:GetMouseLocation()
+                local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - mousePos).Magnitude
+                
+                if distance < shortestDistance then
+                    shortestDistance = distance
+                    closestPlayer = player
+                end
+            end
+        end
+    end
+    
+    return closestPlayer
+end
+
+-- Aimbot classique
+local function startAimbot()
+    if aimbotConnection then
+        aimbotConnection:Disconnect()
+    end
+    
+    aimbotConnection = RunService.RenderStepped:Connect(function()
+        if not aimbotEnabled then return end
+        
+        local target = getClosestPlayer()
+        if target and target.Character then
+            local targetPartObj = target.Character:FindFirstChild(targetPart)
+            if targetPartObj then
+                Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPartObj.Position)
+            end
+        end
+    end)
+end
+
+-- Silent Aim (hook mouse)
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+    local args = {...}
+    local method = getnamecallmethod()
+    
+    if silentAimEnabled and method == "FireServer" and tostring(self) == "ShootEvent" then
+        local target = getClosestPlayer()
+        if target and target.Character then
+            local targetPartObj = target.Character:FindFirstChild(targetPart)
+            if targetPartObj then
+                args[2] = targetPartObj.Position -- Modifier la position du tir
+            end
+        end
+    end
+    
+    return oldNamecall(self, unpack(args))
+end)
+
+-- Rage Bot (tir automatique)
+local function startRageBot()
+    if rageBotConnection then
+        rageBotConnection:Disconnect()
+    end
+    
+    rageBotConnection = RunService.Heartbeat:Connect(function()
+        if not rageBotEnabled then return end
+        
+        local target = getClosestPlayer()
+        if target and target.Character then
+            local targetPartObj = target.Character:FindFirstChild(targetPart)
+            if targetPartObj then
+                -- Viser
+                Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPartObj.Position)
+                
+                -- Tirer automatiquement
+                pcall(function()
+                    local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+                    if tool and tool:FindFirstChild("ShootEvent") then
+                        tool.ShootEvent:FireServer(targetPartObj.Position, targetPartObj)
+                    end
+                end)
+            end
+        end
+    end)
+end
+
+createFOVCircle()
+
+-- UI Aimbot
+local AimbotToggle = Tab:CreateToggle({
+    Name = "Aimbot",
+    CurrentValue = false,
+    Flag = "aimbot_enabled",
+    Callback = function(Value)
+        aimbotEnabled = Value
+        if Value then
+            startAimbot()
+        else
+            if aimbotConnection then
+                aimbotConnection:Disconnect()
+            end
+        end
+    end,
+})
+
+local SilentAimToggle = Tab:CreateToggle({
+    Name = "Silent Aim",
+    CurrentValue = false,
+    Flag = "silent_aim",
+    Callback = function(Value)
+        silentAimEnabled = Value
+    end,
+})
+
+local RageBotToggle = Tab:CreateToggle({
+    Name = "Rage Bot (Auto Shoot)",
+    CurrentValue = false,
+    Flag = "rage_bot",
+    Callback = function(Value)
+        rageBotEnabled = Value
+        if Value then
+            startRageBot()
+        else
+            if rageBotConnection then
+                rageBotConnection:Disconnect()
+            end
+        end
+    end,
+})
+
+local MobileToggle = Tab:CreateToggle({
+    Name = "Mobile Aimbot",
+    CurrentValue = false,
+    Flag = "mobile_aimbot",
+    Callback = function(Value)
+        aimbotMobile = Value
+        -- Pour mobile: activer auto-lock au touch
+    end,
+})
+
+local TeamCheckToggle = Tab:CreateToggle({
+    Name = "Team Check",
+    CurrentValue = true,
+    Flag = "team_check",
+    Callback = function(Value)
+        teamCheck = Value
+    end,
+})
+
+local AliveCheckToggle = Tab:CreateToggle({
+    Name = "Alive Check",
+    CurrentValue = true,
+    Flag = "alive_check",
+    Callback = function(Value)
+        aliveCheck = Value
+    end,
+})
+
+local FOVToggle = Tab:CreateToggle({
+    Name = "Show FOV Circle",
+    CurrentValue = false,
+    Flag = "fov_visible",
+    Callback = function(Value)
+        fovVisible = Value
+    end,
+})
+
+local FOVSlider = Tab:CreateSlider({
+    Name = "FOV Size",
+    Range = {50, 500},
+    Increment = 10,
+    Suffix = "px",
+    CurrentValue = 150,
+    Flag = "fov_size",
+    Callback = function(Value)
+        fovSize = Value
+    end,
+})
+
+local FOVColorPicker = Tab:CreateColorPicker({
+    Name = "FOV Color",
+    Color = Color3.fromRGB(255,255,255),
+    Flag = "fov_color",
+    Callback = function(Value)
+        if fovCircle then
+            fovCircle.Color = Value
+        end
+    end
+})
+
+local Dropdown = Tab:CreateDropdown({
+    Name = "Target Part",
+    Options = {"Head","Torso","HumanoidRootPart"},
+    CurrentOption = "Head",
+    Flag = "target_part",
+    Callback = function(Option)
+        targetPart = Option
+    end,
+})
+
+local AimbotKeybind = Tab:CreateKeybind({
+    Name = "Aimbot Keybind",
+    CurrentKeybind = "E",
+    HoldToInteract = true,
+    Flag = "aimbot_keybind",
+    Callback = function(Keybind)
+        -- Hold E pour aim
+        aimbotEnabled = Keybind
+        if Keybind then
+            startAimbot()
+        else
+            if aimbotConnection then
+                aimbotConnection:Disconnect()
+            end
+        end
+    end,
+})
+
 local Tab = Window:CreateTab("👀｜Visuals", 0)
 local Section = Tab:CreateSection("ESP")
 local Toggle = Tab:CreateToggle({
