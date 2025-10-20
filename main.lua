@@ -507,26 +507,18 @@ LocalPlayer.CharacterAdded:Connect(function(character)
 end)
 
 local Tab = Window:CreateTab("🛡️｜Aimbot", 0)
-
-
--- [PARTIE AIMBOT - À ajouter après la ligne "local Tab = Window:CreateTab("🛡️｜Aimbot", 0)"]
-
 local Section = Tab:CreateSection("Aimbot Settings")
 
 -- Variables globales aimbot
-local aimbotEnabled = false
-local silentAimEnabled = false
 local rageBotEnabled = false
-local aimbotMobile = false
-local fovSize = 150
-local fovVisible = false
-local teamCheck = true
-local aliveCheck = true
+local smoothness = 3
+local magicBulletEnabled = false
+local predictionEnabled = false
+local predictionAmount = 0.13
 local targetPart = "Head"
 
-local fovCircle = nil
-local aimbotConnection = nil
 local rageBotConnection = nil
+local aimbotMobileEnabled = false
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -534,54 +526,394 @@ local Camera = workspace.CurrentCamera
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
--- Créer le cercle FOV
-local function createFOVCircle()
-    if fovCircle then
-        fovCircle:Remove()
-    end
-    
-    fovCircle = Drawing.new("Circle")
-    fovCircle.Thickness = 2
-    fovCircle.NumSides = 50
-    fovCircle.Radius = fovSize
-    fovCircle.Filled = false
-    fovCircle.Transparency = 1
-    fovCircle.Color = Color3.fromRGB(255, 255, 255)
-    fovCircle.Visible = fovVisible
-    fovCircle.ZIndex = 999
-end
-
--- Update position du cercle
-spawn(function()
-    RunService.RenderStepped:Connect(function()
-        if fovCircle then
-            fovCircle.Position = UserInputService:GetMouseLocation()
-            fovCircle.Radius = fovSize
-            fovCircle.Visible = fovVisible and (aimbotEnabled or silentAimEnabled)
-        end
-    end)
-end)
-
--- Fonction pour trouver la cible la plus proche
-local function getClosestPlayer()
+-- Fonction pour trouver la cible la plus proche (pour rage bot)
+local function getClosestPlayerRageBot()
     local closestPlayer = nil
-    local shortestDistance = fovSize
+    local shortestDistance = math.huge
     
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
-            -- Team check
-            if teamCheck and player.Team == LocalPlayer.Team then
-                continue
-            end
-            
             local character = player.Character
             local humanoid = character:FindFirstChildOfClass("Humanoid")
             local targetPartObj = character:FindFirstChild(targetPart)
             
             if not targetPartObj then continue end
+            if not humanoid or humanoid.Health <= 0 then continue end
             
-            -- Alive check
-            if aliveCheck and (not humanoid or humanoid.Health <= 0) then
+            local distance = (targetPartObj.Position - Camera.CFrame.Position).Magnitude
+            
+            if distance < shortestDistance then
+                shortestDistance = distance
+                closestPlayer = player
+            end
+        end
+    end
+    
+    return closestPlayer
+end
+
+-- Rage Bot (tir automatique avec smoothness)
+local function startRageBot()
+    if rageBotConnection then
+        rageBotConnection:Disconnect()
+    end
+    
+    rageBotConnection = RunService.Heartbeat:Connect(function()
+        if not rageBotEnabled then return end
+        
+        local target = getClosestPlayerRageBot()
+        if target and target.Character then
+            local targetPartObj = target.Character:FindFirstChild(targetPart)
+            if targetPartObj then
+                local targetPos = targetPartObj.Position
+                
+                -- Prédiction
+                if predictionEnabled then
+                    local targetVelocity = target.Character.HumanoidRootPart.Velocity
+                    targetPos = targetPos + (targetVelocity * predictionAmount)
+                end
+                
+                -- Smoothness (plus c'est haut, moins de randomness)
+                if smoothness < 5 then
+                    local randomness = (5 - smoothness) * 0.5
+                    local randomOffset = Vector3.new(
+                        math.random(-randomness, randomness),
+                        math.random(-randomness, randomness),
+                        math.random(-randomness, randomness)
+                    )
+                    targetPos = targetPos + randomOffset
+                end
+                
+                -- Viser avec smoothing
+                local currentCFrame = Camera.CFrame
+                local targetCFrame = CFrame.new(currentCFrame.Position, targetPos)
+                Camera.CFrame = currentCFrame:Lerp(targetCFrame, 0.3)
+                
+                -- Tirer automatiquement
+                pcall(function()
+                    local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+                    if tool then
+                        -- Chercher l'event de tir
+                        for _, v in pairs(tool:GetDescendants()) do
+                            if v:IsA("RemoteEvent") and (v.Name:lower():find("shoot") or v.Name:lower():find("fire")) then
+                                v:FireServer(targetPos, targetPartObj)
+                                break
+                            end
+                        end
+                    end
+                end)
+            end
+        end
+    end)
+end
+
+-- Calcul auto de la prédiction
+local function calculateAutoPrediction()
+    Rayfield:Notify({
+        Title = "Auto Prediction",
+        Content = "Analyzing... Please wait",
+        Duration = 2,
+        Image = 4483362458,
+    })
+    
+    spawn(function()
+        local samples = {}
+        local target = getClosestPlayerRageBot()
+        
+        if not target or not target.Character then
+            Rayfield:Notify({
+                Title = "Error",
+                Content = "No target found!",
+                Duration = 3,
+                Image = 4483362458,
+            })
+            return
+        end
+        
+        -- Échantillonner la vitesse sur 1 seconde
+        for i = 1, 10 do
+            if target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+                local velocity = target.Character.HumanoidRootPart.Velocity.Magnitude
+                table.insert(samples, velocity)
+                wait(0.1)
+            end
+        end
+        
+        -- Calculer la moyenne
+        local avgVelocity = 0
+        for _, v in pairs(samples) do
+            avgVelocity = avgVelocity + v
+        end
+        avgVelocity = avgVelocity / #samples
+        
+        -- Calculer la prédiction basée sur la distance
+        local distance = (target.Character.HumanoidRootPart.Position - Camera.CFrame.Position).Magnitude
+        local bulletSpeed = 1000 -- Ajuste selon le jeu
+        local travelTime = distance / bulletSpeed
+        
+        predictionAmount = travelTime * (avgVelocity / 100)
+        
+        Rayfield:Notify({
+            Title = "Auto Prediction",
+            Content = "Prediction set to: " .. string.format("%.2f", predictionAmount),
+            Duration = 3,
+            Image = 4483362458,
+        })
+    end)
+end
+
+-- Magic Bullet (tir à travers les murs)
+if magicBulletEnabled then
+    local oldNamecall
+    oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+        local args = {...}
+        local method = getnamecallmethod()
+        
+        if method == "FireServer" and (tostring(self):lower():find("shoot") or tostring(self):lower():find("fire")) then
+            if magicBulletEnabled then
+                local target = getClosestPlayerRageBot()
+                if target and target.Character then
+                    local targetPartObj = target.Character:FindFirstChild(targetPart)
+                    if targetPartObj then
+                        args[1] = targetPartObj.Position
+                        args[2] = targetPartObj
+                    end
+                end
+            end
+        end
+        
+        return oldNamecall(self, unpack(args))
+    end)
+end
+
+-- UI Rage Bot
+local RageBotToggle = Tab:CreateToggle({
+    Name = "Rage Bot (Auto Shoot)",
+    CurrentValue = false,
+    Flag = "rage_bot",
+    Callback = function(Value)
+        rageBotEnabled = Value
+        if Value then
+            startRageBot()
+        else
+            if rageBotConnection then
+                rageBotConnection:Disconnect()
+            end
+        end
+    end,
+})
+
+local RageBotKeybind = Tab:CreateKeybind({
+    Name = "Rage Bot Keybind",
+    CurrentKeybind = "Q",
+    HoldToInteract = false,
+    Flag = "rage_keybind",
+    Callback = function(Keybind)
+        rageBotEnabled = not rageBotEnabled
+        RageBotToggle:Set(rageBotEnabled)
+        if rageBotEnabled then
+            startRageBot()
+        else
+            if rageBotConnection then
+                rageBotConnection:Disconnect()
+            end
+        end
+    end,
+})
+
+local SmoothnessSlider = Tab:CreateSlider({
+    Name = "Smoothness",
+    Range = {1, 5},
+    Increment = 1,
+    Suffix = "",
+    CurrentValue = 3,
+    Flag = "smoothness",
+    Callback = function(Value)
+        smoothness = Value
+    end,
+})
+
+local MagicBulletToggle = Tab:CreateToggle({
+    Name = "Magic Bullet (Wallbang)",
+    CurrentValue = false,
+    Flag = "magic_bullet",
+    Callback = function(Value)
+        magicBulletEnabled = Value
+    end,
+})
+
+local Section2 = Tab:CreateSection("Prediction")
+
+local PredictionToggle = Tab:CreateToggle({
+    Name = "Prediction",
+    CurrentValue = false,
+    Flag = "prediction",
+    Callback = function(Value)
+        predictionEnabled = Value
+    end,
+})
+
+local PredictionSlider = Tab:CreateSlider({
+    Name = "Prediction Amount",
+    Range = {0, 50},
+    Increment = 1,
+    Suffix = "%",
+    CurrentValue = 13,
+    Flag = "prediction_amount",
+    Callback = function(Value)
+        predictionAmount = Value / 100
+    end,
+})
+
+local AutoPredictionButton = Tab:CreateButton({
+    Name = "Adjust Prediction Auto",
+    Callback = function()
+        calculateAutoPrediction()
+    end,
+})
+
+local Dropdown = Tab:CreateDropdown({
+    Name = "Target Part",
+    Options = {"Head","Torso","HumanoidRootPart"},
+    CurrentOption = "Head",
+    Flag = "target_part",
+    Callback = function(Option)
+        targetPart = Option
+    end,
+})
+
+-- AIMBOT MOBILE (Mini GUI)
+local Section3 = Tab:CreateSection("Mobile")
+
+local mobileGui = nil
+local mobileButton = nil
+
+local function createMobileGui()
+    if mobileGui then
+        mobileGui:Destroy()
+    end
+    
+    mobileGui = Instance.new("ScreenGui")
+    mobileGui.Name = "LuxenMobileAimbot"
+    mobileGui.ResetOnSpawn = false
+    mobileGui.Parent = game.CoreGui
+    
+    mobileButton = Instance.new("TextButton")
+    mobileButton.Size = UDim2.new(0, 80, 0, 80)
+    mobileButton.Position = UDim2.new(1, -100, 0.5, -40)
+    mobileButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    mobileButton.Text = "AIM\nOFF"
+    mobileButton.TextColor3 = Color3.white
+    mobileButton.TextSize = 16
+    mobileButton.Font = Enum.Font.GothamBold
+    mobileButton.Parent = mobileGui
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 10)
+    corner.Parent = mobileButton
+    
+    mobileButton.MouseButton1Click:Connect(function()
+        aimbotMobileEnabled = not aimbotMobileEnabled
+        rageBotEnabled = aimbotMobileEnabled
+        
+        if aimbotMobileEnabled then
+            mobileButton.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+            mobileButton.Text = "AIM\nON"
+            startRageBot()
+        else
+            mobileButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+            mobileButton.Text = "AIM\nOFF"
+            if rageBotConnection then
+                rageBotConnection:Disconnect()
+            end
+        end
+    end)
+end
+
+local MobileAimbotButton = Tab:CreateButton({
+    Name = "Toggle Mobile Aimbot GUI",
+    Callback = function()
+        if mobileGui then
+            mobileGui:Destroy()
+            mobileGui = nil
+            Rayfield:Notify({
+                Title = "Mobile Aimbot",
+                Content = "GUI Hidden",
+                Duration = 2,
+                Image = 4483362458,
+            })
+        else
+            createMobileGui()
+            Rayfield:Notify({
+                Title = "Mobile Aimbot",
+                Content = "GUI Shown",
+                Duration = 2,
+                Image = 4483362458,
+            })
+        end
+    end,
+})
+
+-- ===============================
+-- SILENT AIM (TAB SÉPARÉ)
+-- ===============================
+
+local SilentTab = Window:CreateTab("🎯｜Silent Aim", 0)
+local SilentSection = SilentTab:CreateSection("Silent Aim")
+
+local silentAimEnabled = false
+local silentFovSize = 150
+local silentFovVisible = false
+local silentTeamCheck = true
+local silentAliveCheck = true
+local silentFovCircle = nil
+
+-- Créer le cercle FOV Silent
+local function createSilentFOVCircle()
+    if silentFovCircle then
+        silentFovCircle:Remove()
+    end
+    
+    silentFovCircle = Drawing.new("Circle")
+    silentFovCircle.Thickness = 2
+    silentFovCircle.NumSides = 50
+    silentFovCircle.Radius = silentFovSize
+    silentFovCircle.Filled = false
+    silentFovCircle.Transparency = 1
+    silentFovCircle.Color = Color3.fromRGB(255, 255, 0)
+    silentFovCircle.Visible = silentFovVisible
+    silentFovCircle.ZIndex = 999
+end
+
+-- Update position du cercle Silent
+spawn(function()
+    RunService.RenderStepped:Connect(function()
+        if silentFovCircle then
+            silentFovCircle.Position = UserInputService:GetMouseLocation()
+            silentFovCircle.Radius = silentFovSize
+            silentFovCircle.Visible = silentFovVisible and silentAimEnabled
+        end
+    end)
+end)
+
+-- Fonction pour trouver la cible la plus proche (Silent Aim)
+local function getClosestPlayerSilent()
+    local closestPlayer = nil
+    local shortestDistance = silentFovSize
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            if silentTeamCheck and player.Team == LocalPlayer.Team then
+                continue
+            end
+            
+            local character = player.Character
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            local targetPartObj = character:FindFirstChild("Head")
+            
+            if not targetPartObj then continue end
+            
+            if silentAliveCheck and (not humanoid or humanoid.Health <= 0) then
                 continue
             end
             
@@ -602,201 +934,93 @@ local function getClosestPlayer()
     return closestPlayer
 end
 
--- Aimbot classique
-local function startAimbot()
-    if aimbotConnection then
-        aimbotConnection:Disconnect()
-    end
-    
-    aimbotConnection = RunService.RenderStepped:Connect(function()
-        if not aimbotEnabled then return end
-        
-        local target = getClosestPlayer()
-        if target and target.Character then
-            local targetPartObj = target.Character:FindFirstChild(targetPart)
-            if targetPartObj then
-                Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPartObj.Position)
-            end
-        end
-    end)
-end
-
--- Silent Aim (hook mouse)
-local oldNamecall
-oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+-- Silent Aim Hook
+local oldNamecallSilent
+oldNamecallSilent = hookmetamethod(game, "__namecall", function(self, ...)
     local args = {...}
     local method = getnamecallmethod()
     
-    if silentAimEnabled and method == "FireServer" and tostring(self) == "ShootEvent" then
-        local target = getClosestPlayer()
+    if silentAimEnabled and method == "FireServer" and (tostring(self):lower():find("shoot") or tostring(self):lower():find("fire")) then
+        local target = getClosestPlayerSilent()
         if target and target.Character then
-            local targetPartObj = target.Character:FindFirstChild(targetPart)
+            local targetPartObj = target.Character:FindFirstChild("Head")
             if targetPartObj then
-                args[2] = targetPartObj.Position -- Modifier la position du tir
+                args[1] = targetPartObj.Position
+                args[2] = targetPartObj
             end
         end
     end
     
-    return oldNamecall(self, unpack(args))
+    return oldNamecallSilent(self, unpack(args))
 end)
 
--- Rage Bot (tir automatique)
-local function startRageBot()
-    if rageBotConnection then
-        rageBotConnection:Disconnect()
-    end
-    
-    rageBotConnection = RunService.Heartbeat:Connect(function()
-        if not rageBotEnabled then return end
+createSilentFOVCircle()
+
+-- UI Silent Aim
+local SilentKeybind = SilentTab:CreateKeybind({
+    Name = "Silent Aim Keybind",
+    CurrentKeybind = "T",
+    HoldToInteract = false,
+    Flag = "silent_keybind",
+    Callback = function(Keybind)
+        silentAimEnabled = not silentAimEnabled
         
-        local target = getClosestPlayer()
-        if target and target.Character then
-            local targetPartObj = target.Character:FindFirstChild(targetPart)
-            if targetPartObj then
-                -- Viser
-                Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPartObj.Position)
-                
-                -- Tirer automatiquement
-                pcall(function()
-                    local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
-                    if tool and tool:FindFirstChild("ShootEvent") then
-                        tool.ShootEvent:FireServer(targetPartObj.Position, targetPartObj)
-                    end
-                end)
-            end
-        end
-    end)
-end
+        Rayfield:Notify({
+            Title = "Silent Aim",
+            Content = silentAimEnabled and "Enabled" or "Disabled",
+            Duration = 2,
+            Image = 4483362458,
+        })
+    end,
+})
 
-createFOVCircle()
-
--- UI Aimbot
-local AimbotToggle = Tab:CreateToggle({
-    Name = "Enable Aimbot",
+local SilentFOVToggle = SilentTab:CreateToggle({
+    Name = "Show Silent Aim FOV",
     CurrentValue = false,
-    Flag = "aimbot_enabled",
+    Flag = "silent_fov_visible",
     Callback = function(Value)
-        aimbotEnabled = Value
-        if Value then
-            startAimbot()
-        else
-            if aimbotConnection then
-                aimbotConnection:Disconnect()
-            end
-        end
+        silentFovVisible = Value
     end,
 })
 
-local SilentAimToggle = Tab:CreateToggle({
-    Name = "Silent Aim",
-    CurrentValue = false,
-    Flag = "silent_aim",
-    Callback = function(Value)
-        silentAimEnabled = Value
-    end,
-})
-
-local RageBotToggle = Tab:CreateToggle({
-    Name = "Rage Bot (Auto Shoot)",
-    CurrentValue = false,
-    Flag = "rage_bot",
-    Callback = function(Value)
-        rageBotEnabled = Value
-        if Value then
-            startRageBot()
-        else
-            if rageBotConnection then
-                rageBotConnection:Disconnect()
-            end
-        end
-    end,
-})
-
-local MobileToggle = Tab:CreateToggle({
-    Name = "Mobile Aimbot",
-    CurrentValue = false,
-    Flag = "mobile_aimbot",
-    Callback = function(Value)
-        aimbotMobile = Value
-        -- Pour mobile: activer auto-lock au touch
-    end,
-})
-
-local TeamCheckToggle = Tab:CreateToggle({
-    Name = "Team Check",
-    CurrentValue = true,
-    Flag = "team_check",
-    Callback = function(Value)
-        teamCheck = Value
-    end,
-})
-
-local AliveCheckToggle = Tab:CreateToggle({
-    Name = "Alive Check",
-    CurrentValue = true,
-    Flag = "alive_check",
-    Callback = function(Value)
-        aliveCheck = Value
-    end,
-})
-
-local FOVToggle = Tab:CreateToggle({
-    Name = "Show FOV Circle",
-    CurrentValue = false,
-    Flag = "fov_visible",
-    Callback = function(Value)
-        fovVisible = Value
-    end,
-})
-
-local FOVSlider = Tab:CreateSlider({
+local SilentFOVSlider = SilentTab:CreateSlider({
     Name = "FOV Size",
     Range = {50, 500},
     Increment = 10,
     Suffix = "px",
     CurrentValue = 150,
-    Flag = "fov_size",
+    Flag = "silent_fov_size",
     Callback = function(Value)
-        fovSize = Value
+        silentFovSize = Value
     end,
 })
 
-local FOVColorPicker = Tab:CreateColorPicker({
+local SilentFOVColorPicker = SilentTab:CreateColorPicker({
     Name = "FOV Color",
-    Color = Color3.fromRGB(255,255,255),
-    Flag = "fov_color",
+    Color = Color3.fromRGB(255,255,0),
+    Flag = "silent_fov_color",
     Callback = function(Value)
-        if fovCircle then
-            fovCircle.Color = Value
+        if silentFovCircle then
+            silentFovCircle.Color = Value
         end
     end
 })
 
-local Dropdown = Tab:CreateDropdown({
-    Name = "Target Part",
-    Options = {"Head","Torso","HumanoidRootPart"},
-    CurrentOption = "Head",
-    Flag = "target_part",
-    Callback = function(Option)
-        targetPart = Option
+local SilentTeamCheckToggle = SilentTab:CreateToggle({
+    Name = "Team Check",
+    CurrentValue = true,
+    Flag = "silent_team_check",
+    Callback = function(Value)
+        silentTeamCheck = Value
     end,
 })
 
-local AimbotKeybind = Tab:CreateKeybind({
-    Name = "Aimbot Keybind",
-    CurrentKeybind = "E",
-    HoldToInteract = true,
-    Flag = "aimbot_keybind",
-    Callback = function(Keybind)
-        -- Hold E pour aim
-        aimbotEnabled = Keybind
-        if Keybind then
-            startAimbot()
-        else
-            if aimbotConnection then
-                aimbotConnection:Disconnect()
-            end
-        end
+local SilentAliveCheckToggle = SilentTab:CreateToggle({
+    Name = "Alive Check",
+    CurrentValue = true,
+    Flag = "silent_alive_check",
+    Callback = function(Value)
+        silentAliveCheck = Value
     end,
 })
 
