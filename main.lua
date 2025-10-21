@@ -837,39 +837,30 @@ local ArmorSlider = Tab:CreateSlider({
     end,
 })
 
--- ColorPicker Car Color
+-- ColorPicker Car Color (CORRIGÉ - maintien continu)
+local carColorEnabled = false
+local currentCarColor = "e1b82d"
+
 local CarColorPicker = Tab:CreateColorPicker({
     Name = "Car Color",
     Color = hexToColor3("e1b82d"),
     Flag = "CarColor",
     Callback = function(Value)
+        currentCarColor = color3ToHex(Value)
+        carColorEnabled = true
+        
         pcall(function()
             local vehicle = findPlayerVehicle()
             if vehicle then
-                local hexColor = color3ToHex(Value)
-                
-                -- Modifier directement sur le Model
-                vehicle:SetAttribute("color", hexColor)
+                vehicle:SetAttribute("color", currentCarColor)
                 if vehicle:FindFirstChild("color") then
-                    vehicle.color.Value = hexColor
-                else
-                    local attr = Instance.new("StringValue")
-                    attr.Name = "color"
-                    attr.Value = hexColor
-                    attr.Parent = vehicle
+                    vehicle.color.Value = currentCarColor
                 end
                 
                 Rayfield:Notify({
                     Title = "Car Color",
-                    Content = "Color changed to #" .. hexColor,
+                    Content = "Color changed to #" .. currentCarColor,
                     Duration = 2,
-                    Image = 4483362458
-                })
-            else
-                Rayfield:Notify({
-                    Title = "Error",
-                    Content = "Vehicle not found!",
-                    Duration = 3,
                     Image = 4483362458
                 })
             end
@@ -877,38 +868,30 @@ local CarColorPicker = Tab:CreateColorPicker({
     end
 })
 
--- ColorPicker Rims Color
+-- ColorPicker Rims Color (CORRIGÉ - maintien continu)
+local rimColorEnabled = false
+local currentRimColor = "e0e5e5"
+
 local RimsColorPicker = Tab:CreateColorPicker({
     Name = "Rims Color",
     Color = hexToColor3("e0e5e5"),
     Flag = "RimsColor",
     Callback = function(Value)
+        currentRimColor = color3ToHex(Value)
+        rimColorEnabled = true
+        
         pcall(function()
             local vehicle = findPlayerVehicle()
             if vehicle then
-                local hexColor = color3ToHex(Value)
-                
-                vehicle:SetAttribute("rimColor", hexColor)
+                vehicle:SetAttribute("rimColor", currentRimColor)
                 if vehicle:FindFirstChild("rimColor") then
-                    vehicle.rimColor.Value = hexColor
-                else
-                    local attr = Instance.new("StringValue")
-                    attr.Name = "rimColor"
-                    attr.Value = hexColor
-                    attr.Parent = vehicle
+                    vehicle.rimColor.Value = currentRimColor
                 end
                 
                 Rayfield:Notify({
                     Title = "Rims Color",
-                    Content = "Rims color changed to #" .. hexColor,
+                    Content = "Rims color changed to #" .. currentRimColor,
                     Duration = 2,
-                    Image = 4483362458
-                })
-            else
-                Rayfield:Notify({
-                    Title = "Error",
-                    Content = "Vehicle not found!",
-                    Duration = 3,
                     Image = 4483362458
                 })
             end
@@ -916,113 +899,122 @@ local RimsColorPicker = Tab:CreateColorPicker({
     end
 })
 
--- Bouton Infinite Fuel
-local InfiniteFuelButton = Tab:CreateButton({
+-- Toggle Infinite Fuel (NOUVEAU)
+local infiniteFuelEnabled = false
+
+local InfiniteFuelToggle = Tab:CreateToggle({
     Name = "Infinite Fuel",
-    Callback = function()
-        pcall(function()
-            local vehicle = findPlayerVehicle()
-            if vehicle then
-                vehicle:SetAttribute("currentFuel", 99999999999)
-                if vehicle:FindFirstChild("currentFuel") then
-                    vehicle.currentFuel.Value = 99999999999
-                else
-                    local attr = Instance.new("NumberValue")
-                    attr.Name = "currentFuel"
-                    attr.Value = 99999999999
-                    attr.Parent = vehicle
-                end
-                
-                Rayfield:Notify({
-                    Title = "Infinite Fuel",
-                    Content = "Fuel set to infinite!",
-                    Duration = 3,
-                    Image = 4483362458
-                })
-            else
-                Rayfield:Notify({
-                    Title = "Error",
-                    Content = "Vehicle not found!",
-                    Duration = 3,
-                    Image = 4483362458
-                })
-            end
-        end)
-    end,
-})
-
--- Bouton Anti Crash Damage
-local AntiCrashButton = Tab:CreateButton({
-    Name = "Anti Crash Damage",
-    Callback = function()
-        pcall(function()
-            local vehicle = findPlayerVehicle()
-            if vehicle then
-                vehicle:SetAttribute("currentHealth", 9999999999)
-                if vehicle:FindFirstChild("currentHealth") then
-                    vehicle.currentHealth.Value = 9999999999
-                else
-                    local attr = Instance.new("NumberValue")
-                    attr.Name = "currentHealth"
-                    attr.Value = 9999999999
-                    attr.Parent = vehicle
-                end
-                
-                Rayfield:Notify({
-                    Title = "Anti Crash",
-                    Content = "Vehicle health set to max!",
-                    Duration = 3,
-                    Image = 4483362458
-                })
-            else
-                Rayfield:Notify({
-                    Title = "Error",
-                    Content = "Vehicle not found!",
-                    Duration = 3,
-                    Image = 4483362458
-                })
-            end
-        end)
-    end,
-})
-
--- Debug: Afficher les proprietes du vehicule
-Tab:CreateButton({
-    Name = "Debug: Show Vehicle Properties",
-    Callback = function()
-        local vehicle = findPlayerVehicle()
-        if vehicle then
-            print("===== VEHICLE PROPERTIES =====")
-            print("Vehicle Name:", vehicle.Name)
-            
-            -- Afficher les Attributes
-            print("\n--- Attributes ---")
-            for name, value in pairs(vehicle:GetAttributes()) do
-                print(name, "=", value)
-            end
-            
-            -- Afficher les enfants (Values)
-            print("\n--- Children (Values) ---")
-            for _, child in pairs(vehicle:GetChildren()) do
-                if child:IsA("ValueBase") then
-                    print(child.ClassName, child.Name, "=", child.Value)
-                end
-            end
-            
+    CurrentValue = false,
+    Flag = "infinite_fuel_toggle",
+    Callback = function(Value)
+        infiniteFuelEnabled = Value
+        if Value then
             Rayfield:Notify({
-                Title = "Debug",
-                Content = "Check console (F9) for vehicle properties",
-                Duration = 3,
+                Title = "Infinite Fuel",
+                Content = "Infinite fuel enabled!",
+                Duration = 2,
                 Image = 4483362458
             })
         else
             Rayfield:Notify({
-                Title = "Error",
-                Content = "No vehicle found!",
-                Duration = 3,
+                Title = "Infinite Fuel",
+                Content = "Infinite fuel disabled",
+                Duration = 2,
                 Image = 4483362458
             })
         end
+    end,
+})
+
+-- Toggle Anti Crash Damage (NOUVEAU)
+local antiCrashEnabled = false
+
+local AntiCrashToggle = Tab:CreateToggle({
+    Name = "Anti Crash Damage",
+    CurrentValue = false,
+    Flag = "anti_crash_toggle",
+    Callback = function(Value)
+        antiCrashEnabled = Value
+        if Value then
+            Rayfield:Notify({
+                Title = "Anti Crash",
+                Content = "Anti crash damage enabled!",
+                Duration = 2,
+                Image = 4483362458
+            })
+        else
+            Rayfield:Notify({
+                Title = "Anti Crash",
+                Content = "Anti crash damage disabled",
+                Duration = 2,
+                Image = 4483362458
+            })
+        end
+    end,
+})
+
+-- BOUCLE DE MAINTIEN (NOUVEAU - remplace les anciens boutons)
+spawn(function()
+    while wait(0.1) do -- Vérifie toutes les 0.1 secondes
+        pcall(function()
+            local vehicle = findPlayerVehicle()
+            if vehicle then
+                -- Maintenir la couleur de la voiture
+                if carColorEnabled then
+                    vehicle:SetAttribute("color", currentCarColor)
+                    if vehicle:FindFirstChild("color") then
+                        if vehicle.color.Value ~= currentCarColor then
+                            vehicle.color.Value = currentCarColor
+                        end
+                    end
+                end
+                
+                -- Maintenir la couleur des jantes
+                if rimColorEnabled then
+                    vehicle:SetAttribute("rimColor", currentRimColor)
+                    if vehicle:FindFirstChild("rimColor") then
+                        if vehicle.rimColor.Value ~= currentRimColor then
+                            vehicle.rimColor.Value = currentRimColor
+                        end
+                    end
+                end
+                
+                -- Maintenir le fuel infini
+                if infiniteFuelEnabled then
+                    vehicle:SetAttribute("currentFuel", 99999999999)
+                    if vehicle:FindFirstChild("currentFuel") then
+                        if vehicle.currentFuel.Value < 99999999999 then
+                            vehicle.currentFuel.Value = 99999999999
+                        end
+                    end
+                end
+                
+                -- Maintenir la santé infinie
+                if antiCrashEnabled then
+                    vehicle:SetAttribute("currentHealth", 9999999999)
+                    if vehicle:FindFirstChild("currentHealth") then
+                        if vehicle.currentHealth.Value < 9999999999 then
+                            vehicle.currentHealth.Value = 9999999999
+                        end
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+-- Bouton de reset pour les couleurs
+Tab:CreateButton({
+    Name = "Reset Colors",
+    Callback = function()
+        carColorEnabled = false
+        rimColorEnabled = false
+        Rayfield:Notify({
+            Title = "Colors Reset",
+            Content = "Car and rim colors disabled",
+            Duration = 2,
+            Image = 4483362458
+        })
     end
 })
 
