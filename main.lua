@@ -1162,15 +1162,139 @@ local SKEColorPicker = Tab:CreateColorPicker({
 
 local Tab = Window:CreateTab("🏎️｜Car Mods", 0)
 
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+-- Variables globales
+local carFlyEnabled = false
+local carFlySpeed = 120
+local carFlyKeybind = Enum.KeyCode.K
+local carAccelEnabled = false
+local carAccelValue = 0
+local carMaxSpeedValue = 200
+local antiCrashEnabled = false
+
+-- Fonction pour trouver le véhicule du joueur
+local function findPlayerVehicle()
+    local vehiclesFolder = workspace:FindFirstChild("Vehicles")
+    if not vehiclesFolder then
+        return nil
+    end
+    
+    local playerVehicle = vehiclesFolder:FindFirstChild(LocalPlayer.Name)
+    if playerVehicle then
+        return playerVehicle
+    end
+    
+    for _, vehicle in pairs(vehiclesFolder:GetChildren()) do
+        if vehicle:IsA("Model") then
+            local driveSeat = vehicle:FindFirstChild("DriveSeat")
+            if driveSeat and driveSeat.Occupant then
+                local humanoid = driveSeat.Occupant
+                if humanoid.Parent == LocalPlayer.Character then
+                    return vehicle
+                end
+            end
+        end
+    end
+    
+    return nil
+end
+
+-- Section Car Fly
 local Section = Tab:CreateSection("Car Fly")
+
+local carFlyConnection = nil
+
+local function startCarFly()
+    if carFlyConnection then return end
+    
+    carFlyConnection = RunService.Heartbeat:Connect(function()
+        if not carFlyEnabled then return end
+        
+        local vehicle = findPlayerVehicle()
+        if not vehicle then return end
+        
+        local primaryPart = vehicle.PrimaryPart or vehicle:FindFirstChild("DriveSeat") or vehicle:FindFirstChildWhichIsA("BasePart")
+        if not primaryPart then return end
+        
+        local camera = workspace.CurrentCamera
+        local moveDirection = Vector3.new(0, 0, 0)
+        
+        -- Contrôles de direction
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+            moveDirection = moveDirection + (camera.CFrame.LookVector * carFlySpeed)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+            moveDirection = moveDirection - (camera.CFrame.LookVector * carFlySpeed)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+            moveDirection = moveDirection - (camera.CFrame.RightVector * carFlySpeed)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+            moveDirection = moveDirection + (camera.CFrame.RightVector * carFlySpeed)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+            moveDirection = moveDirection + Vector3.new(0, carFlySpeed, 0)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+            moveDirection = moveDirection - Vector3.new(0, carFlySpeed, 0)
+        end
+        
+        -- Appliquer le mouvement
+        for _, part in pairs(vehicle:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+                part.Velocity = moveDirection
+                part.RotVelocity = Vector3.new(0, 0, 0)
+            end
+        end
+        
+        -- Orienter le véhicule vers la caméra
+        if moveDirection.Magnitude > 0 then
+            local lookAt = CFrame.new(primaryPart.Position, primaryPart.Position + camera.CFrame.LookVector)
+            primaryPart.CFrame = lookAt
+        end
+    end)
+end
+
+local function stopCarFly()
+    if carFlyConnection then
+        carFlyConnection:Disconnect()
+        carFlyConnection = nil
+    end
+    
+    local vehicle = findPlayerVehicle()
+    if vehicle then
+        for _, part in pairs(vehicle:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+                part.Velocity = Vector3.new(0, 0, 0)
+            end
+        end
+    end
+end
 
 local Toggle = Tab:CreateToggle({
    Name = "Car fly",
    CurrentValue = false,
-   Flag = "car_fly", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Flag = "car_fly",
    Callback = function(Value)
-   -- The function that takes place when the toggle is pressed
-   -- The variable (Value) is a boolean on whether the toggle is true or false
+       carFlyEnabled = Value
+       if Value then
+           startCarFly()
+           Rayfield:Notify({
+               Title = "Car Fly",
+               Content = "Activated! Press " .. carFlyKeybind.Name .. " to toggle",
+               Duration = 3,
+               Image = 4483362458,
+           })
+       else
+           stopCarFly()
+       end
    end,
 })
 
@@ -1178,10 +1302,11 @@ local CarFlySpeed = Tab:CreateSlider({
     Name = "Car Fly Speed",
     Range = {50, 500},
     Increment = 10,
-    Suffix = "speed",
+    Suffix = " speed",
     CurrentValue = 120,
     Flag = "fly_speed",
     Callback = function(Value)
+        carFlySpeed = Value
     end,
 })
 
@@ -1191,19 +1316,66 @@ local CarFlyKeybind = Tab:CreateKeybind({
     HoldToInteract = false,
     Flag = "car_fly_keybind",
     Callback = function(Keybind)
+        carFlyKeybind = Enum.KeyCode[Keybind]
     end,
 })
 
-local Section = Tab:CreateSection("Car boost")
+-- Keybind listener
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == carFlyKeybind then
+        carFlyEnabled = not carFlyEnabled
+        if carFlyEnabled then
+            startCarFly()
+        else
+            stopCarFly()
+        end
+    end
+end)
+
+-- Section Car Boost
+local Section2 = Tab:CreateSection("Car boost")
+
+local speedConnection = nil
+
+local function applyCarMods()
+    if speedConnection then
+        speedConnection:Disconnect()
+    end
+    
+    speedConnection = RunService.Heartbeat:Connect(function()
+        local vehicle = findPlayerVehicle()
+        if not vehicle then return end
+        
+        local vehicleStats = vehicle:FindFirstChild("Stats")
+        if vehicleStats then
+            -- Modifier la vitesse max
+            local maxSpeed = vehicleStats:FindFirstChild("MaxSpeed")
+            if maxSpeed then
+                maxSpeed.Value = carMaxSpeedValue
+            end
+            
+            -- Modifier l'accélération si activée
+            if carAccelEnabled then
+                local accel = vehicleStats:FindFirstChild("Acceleration")
+                if accel then
+                    accel.Value = carAccelValue
+                end
+            end
+        end
+    end)
+end
 
 local CarMaxSpeed = Tab:CreateSlider({
     Name = "Car Max Speed",
     Range = {10, 480},
     Increment = 10,
-    Suffix = "km/h",
+    Suffix = " km/h",
     CurrentValue = 200,
     Flag = "car_max_speed",
     Callback = function(Value)
+        carMaxSpeedValue = Value
+        applyCarMods()
     end,
 })
 
@@ -1211,31 +1383,71 @@ local CarAccel = Tab:CreateSlider({
     Name = "Car Acceleration",
     Range = {0, 10000},
     Increment = 30,
-    Suffix = "acceleration",
+    Suffix = " acceleration",
     CurrentValue = 0,
     Flag = "car_accel",
     Callback = function(Value)
+        carAccelValue = Value
+        if carAccelEnabled then
+            applyCarMods()
+        end
     end,
 })
 
-local Toggle = Tab:CreateToggle({
+local AccelToggle = Tab:CreateToggle({
    Name = "Enable Acceleration",
    CurrentValue = false,
-   Flag = "car_accel_toggle", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Flag = "car_accel_toggle",
    Callback = function(Value)
-   -- The function that takes place when the toggle is pressed
-   -- The variable (Value) is a boolean on whether the toggle is true or false
+       carAccelEnabled = Value
+       if Value then
+           applyCarMods()
+       end
    end,
 })
 
-local Section = Tab:CreateSection("Car tuning")
+-- Section Car Tuning
+local Section3 = Tab:CreateSection("Car tuning")
 
+local function changeCarColor(color)
+    local vehicle = findPlayerVehicle()
+    if not vehicle then return end
+    
+    for _, part in pairs(vehicle:GetDescendants()) do
+        if part:IsA("BasePart") and not part.Name:lower():match("rim") and not part.Name:lower():match("wheel") then
+            part.Color = color
+        end
+    end
+end
+
+local function changeRimsColor(color)
+    local vehicle = findPlayerVehicle()
+    if not vehicle then return end
+    
+    for _, part in pairs(vehicle:GetDescendants()) do
+        if part:IsA("BasePart") and (part.Name:lower():match("rim") or part.Name:lower():match("wheel")) then
+            part.Color = color
+        end
+    end
+end
+
+local function changeHeadlightColor(color)
+    local vehicle = findPlayerVehicle()
+    if not vehicle then return end
+    
+    for _, light in pairs(vehicle:GetDescendants()) do
+        if light:IsA("Light") or light:IsA("SurfaceLight") or light:IsA("SpotLight") then
+            light.Color = color
+        end
+    end
+end
 
 local CarColorPicker = Tab:CreateColorPicker({
     Name = "Car Color",
     Color = Color3.fromRGB(255,255,255),
     Flag = "car_color",
     Callback = function(Value)
+        changeCarColor(Value)
     end
 })
 
@@ -1244,59 +1456,129 @@ local RimsColorPicker = Tab:CreateColorPicker({
     Color = Color3.fromRGB(255,255,255),
     Flag = "rims_color",
     Callback = function(Value)
+        changeRimsColor(Value)
     end
 })
 
 local HeadlightColorPicker = Tab:CreateColorPicker({
-    Name = "Healight Color",
+    Name = "Headlight Color",
     Color = Color3.fromRGB(255,255,255),
     Flag = "headlight_color",
     Callback = function(Value)
+        changeHeadlightColor(Value)
     end
 })
 
-local EngineSlider = SilentTab:CreateSlider({
+-- Pour Engine, Brakes et Armor - tu devras me donner le remote
+-- Voici un placeholder pour le moment
+
+local EngineSlider = Tab:CreateSlider({
     Name = "Engine Level",
     Range = {1, 6},
     Increment = 1,
-    Suffix = "level",
+    Suffix = " level",
     CurrentValue = 1,
     Flag = "engine_level",
     Callback = function(Value)
+        -- TODO: Ajouter le remote ici
+        Rayfield:Notify({
+            Title = "Engine Level",
+            Content = "Set to level " .. Value .. " (Remote needed)",
+            Duration = 2,
+            Image = 4483362458,
+        })
     end,
 })
 
-local BrakesSlider = SilentTab:CreateSlider({
+local BrakesSlider = Tab:CreateSlider({
     Name = "Brakes Level",
     Range = {1, 6},
     Increment = 1,
-    Suffix = "level",
+    Suffix = " level",
     CurrentValue = 1,
-    Flag = "arakes_level",
+    Flag = "brakes_level",
     Callback = function(Value)
+        -- TODO: Ajouter le remote ici
+        Rayfield:Notify({
+            Title = "Brakes Level",
+            Content = "Set to level " .. Value .. " (Remote needed)",
+            Duration = 2,
+            Image = 4483362458,
+        })
     end,
 })
 
-local ArmorSlider = SilentTab:CreateSlider({
+local ArmorSlider = Tab:CreateSlider({
     Name = "Armor Level",
     Range = {1, 6},
     Increment = 1,
-    Suffix = "level",
+    Suffix = " level",
     CurrentValue = 1,
     Flag = "armor_level",
     Callback = function(Value)
+        -- TODO: Ajouter le remote ici
+        Rayfield:Notify({
+            Title = "Armor Level",
+            Content = "Set to level " .. Value .. " (Remote needed)",
+            Duration = 2,
+            Image = 4483362458,
+        })
     end,
 })
 
-local Toggle = Tab:CreateToggle({
+-- Anti Crash Damage
+local antiCrashConnection = nil
+
+local AntiCrashToggle = Tab:CreateToggle({
    Name = "Anti crash damage",
    CurrentValue = false,
-   Flag = "car_anti_crash_toggle", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Flag = "car_anti_crash_toggle",
    Callback = function(Value)
-   -- The function that takes place when the toggle is pressed
-   -- The variable (Value) is a boolean on whether the toggle is true or false
+       antiCrashEnabled = Value
+       
+       if Value then
+           antiCrashConnection = RunService.Heartbeat:Connect(function()
+               local vehicle = findPlayerVehicle()
+               if not vehicle then return end
+               
+               local health = vehicle:FindFirstChild("Health")
+               if health then
+                   health.Value = health.MaxValue or 100
+               end
+               
+               -- Protéger toutes les parties du véhicule
+               for _, part in pairs(vehicle:GetDescendants()) do
+                   if part:IsA("BasePart") then
+                       part.AssemblyLinearVelocity = Vector3.new(
+                           math.clamp(part.AssemblyLinearVelocity.X, -200, 200),
+                           math.clamp(part.AssemblyLinearVelocity.Y, -200, 200),
+                           math.clamp(part.AssemblyLinearVelocity.Z, -200, 200)
+                       )
+                   end
+               end
+           end)
+           
+           Rayfield:Notify({
+               Title = "Anti Crash",
+               Content = "Activated!",
+               Duration = 2,
+               Image = 4483362458,
+           })
+       else
+           if antiCrashConnection then
+               antiCrashConnection:Disconnect()
+               antiCrashConnection = nil
+           end
+       end
    end,
 })
+
+-- Cleanup en quittant
+LocalPlayer.CharacterRemoving:Connect(function()
+    stopCarFly()
+    if speedConnection then speedConnection:Disconnect() end
+    if antiCrashConnection then antiCrashConnection:Disconnect() end
+end)
 
 local Tab = Window:CreateTab("🧨｜Weapon Mods", 0)
 
