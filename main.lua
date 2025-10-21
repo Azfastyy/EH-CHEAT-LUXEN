@@ -2207,7 +2207,7 @@ local Tab = Window:CreateTab("🔧｜Garage", 0)
 -- Section Upgrades
 local Section1 = Tab:CreateSection("Performance Upgrades")
 
-Tab:CreateSlider({
+local SLIDERENGINE = Tab:CreateSlider({
    Name = "Engine Level",
    Range = {0, 6},
    Increment = 1,
@@ -2219,7 +2219,7 @@ Tab:CreateSlider({
    end,
 })
 
-Tab:CreateSlider({
+local BRAKESLIDER = Tab:CreateSlider({
    Name = "Brake Level",
    Range = {0, 6},
    Increment = 1,
@@ -2231,7 +2231,7 @@ Tab:CreateSlider({
    end,
 })
 
-Tab:CreateSlider({
+local ARMORSLIDER = Tab:CreateSlider({
    Name = "Armor Level",
    Range = {0, 6},
    Increment = 1,
@@ -2243,7 +2243,7 @@ Tab:CreateSlider({
    end,
 })
 
-Tab:CreateButton({
+local BUTTONAPPLY = Tab:CreateButton({
    Name = "Apply Upgrades (FREE)",
    Callback = function()
        local success = pcall(function()
@@ -2270,7 +2270,7 @@ Tab:CreateButton({
 -- Section Colors
 local Section2 = Tab:CreateSection("Colors")
 
-Tab:CreateInput({
+local INPUTHEX = Tab:CreateInput({
    Name = "Car Color (HEX)",
    PlaceholderText = "#FFFFFF",
    RemoveTextAfterFocusLost = false,
@@ -2288,7 +2288,7 @@ Tab:CreateInput({
    end,
 })
 
-Tab:CreateButton({
+local BUTTONAPPLYCOLOR = Tab:CreateButton({
    Name = "Apply Car Color",
    Callback = function()
        local success = pcall(function()
@@ -2306,7 +2306,7 @@ Tab:CreateButton({
    end,
 })
 
-Tab:CreateInput({
+local INPUTWHEEL = Tab:CreateInput({
    Name = "Wheel Color (HEX)",
    PlaceholderText = "#FFFFFF",
    RemoveTextAfterFocusLost = false,
@@ -2324,7 +2324,7 @@ Tab:CreateInput({
    end,
 })
 
-Tab:CreateButton({
+local APPLYBUTTONWHEEL = Tab:CreateButton({
    Name = "Apply Wheel Color",
    Callback = function()
        local success = pcall(function()
@@ -2345,7 +2345,7 @@ Tab:CreateButton({
 -- Section License Plate
 local Section3 = Tab:CreateSection("License Plate")
 
-Tab:CreateInput({
+local IMMA_1 = Tab:CreateInput({
    Name = "Part 1",
    PlaceholderText = "AA",
    RemoveTextAfterFocusLost = false,
@@ -2355,7 +2355,7 @@ Tab:CreateInput({
    end,
 })
 
-Tab:CreateInput({
+local IMMA_2 = Tab:CreateInput({
    Name = "Part 2",
    PlaceholderText = "EN",
    RemoveTextAfterFocusLost = false,
@@ -2365,7 +2365,7 @@ Tab:CreateInput({
    end,
 })
 
-Tab:CreateInput({
+local IMMA_3 = Tab:CreateInput({
    Name = "Part 3",
    PlaceholderText = "86",
    RemoveTextAfterFocusLost = false,
@@ -2375,7 +2375,7 @@ Tab:CreateInput({
    end,
 })
 
-Tab:CreateButton({
+local APPLY_PLATE = Tab:CreateButton({
    Name = "Apply License Plate",
    Callback = function()
        local success = pcall(function()
@@ -2396,7 +2396,7 @@ Tab:CreateButton({
 -- Section Quick Actions
 local Section4 = Tab:CreateSection("Quick Actions")
 
-Tab:CreateButton({
+local INSTANT_REPAIR = Tab:CreateButton({
    Name = "Instant Repair (FREE)",
    Callback = function()
        local success = pcall(function()
@@ -2414,7 +2414,7 @@ Tab:CreateButton({
    end,
 })
 
-Tab:CreateButton({
+local MAXALLBUTTON = Tab:CreateButton({
    Name = "⚡ Quick Max All",
    Callback = function()
        local success = pcall(function()
