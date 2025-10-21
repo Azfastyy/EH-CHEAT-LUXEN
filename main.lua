@@ -1332,7 +1332,7 @@ local function exitVehicle()
     end)
 end
 
--- Téléportation sécurisée en voiture
+-- Téléportation sécurisée en voiture (VERSION AMÉLIORÉE)
 local isTeleporting = false
 
 local function safeCarTeleport(targetPosition)
@@ -1397,9 +1397,24 @@ local function safeCarTeleport(targetPosition)
         Image = 4483362458,
     })
     
+    -- Trouver le sol exact à la destination
+    local rayOriginDest = targetPosition + Vector3.new(0, 100, 0)
+    local rayDirectionDest = Vector3.new(0, -200, 0)
+    
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterDescendantsInstances = {vehicle, LocalPlayer.Character}
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    
+    local destRayResult = workspace:Raycast(rayOriginDest, rayDirectionDest, raycastParams)
+    
+    -- Ajuster la position de destination au niveau du sol (légèrement dans le sol)
+    if destRayResult then
+        targetPosition = Vector3.new(targetPosition.X, destRayResult.Position.Y + 0.5, targetPosition.Z)
+    end
+    
     local startPos = primaryPart.Position
     local distance = (targetPosition - startPos).Magnitude
-    local speed = 500
+    local speed = 580
     local speedInStuds = speed * 0.277778
     local duration = distance / speedInStuds
     
@@ -1417,17 +1432,44 @@ local function safeCarTeleport(targetPosition)
         
         local currentPos = startPos:Lerp(targetPosition, alpha)
         
+        -- Raycast pour suivre le sol UNIQUEMENT sur le terrain
         local rayOrigin = currentPos + Vector3.new(0, 50, 0)
         local rayDirection = Vector3.new(0, -100, 0)
         
-        local raycastParams = RaycastParams.new()
-        raycastParams.FilterDescendantsInstances = {vehicle}
-        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+        local raycastParamsGround = RaycastParams.new()
+        raycastParamsGround.FilterDescendantsInstances = {vehicle, LocalPlayer.Character}
+        raycastParamsGround.FilterType = Enum.RaycastFilterType.Blacklist
         
-        local rayResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+        local rayResult = workspace:Raycast(rayOrigin, rayDirection, raycastParamsGround)
         
         if rayResult then
-            currentPos = Vector3.new(currentPos.X, rayResult.Position.Y + 2, currentPos.Z)
+            local hitPart = rayResult.Instance
+            
+            -- Vérifier si c'est du terrain naturel (pas un bâtiment)
+            local isNaturalGround = false
+            
+            -- Si c'est le Terrain de Roblox
+            if hitPart:IsA("Terrain") then
+                isNaturalGround = true
+            -- Si c'est une partie nommée "Ground", "Road", "Terrain", etc.
+            elseif hitPart.Name:lower():match("ground") or 
+                   hitPart.Name:lower():match("road") or 
+                   hitPart.Name:lower():match("terrain") or
+                   hitPart.Name:lower():match("floor") or
+                   hitPart.Name:lower():match("baseplate") then
+                isNaturalGround = true
+            -- Si la partie est proche du niveau Y de départ (tolérance)
+            elseif math.abs(rayResult.Position.Y - startPos.Y) < 15 then
+                isNaturalGround = true
+            end
+            
+            -- Suivre le sol uniquement si c'est du terrain naturel (légèrement dans le sol)
+            if isNaturalGround then
+                currentPos = Vector3.new(currentPos.X, rayResult.Position.Y + 0.5, currentPos.Z)
+            else
+                -- Sinon, maintenir l'altitude d'origine
+                currentPos = Vector3.new(currentPos.X, startPos.Y, currentPos.Z)
+            end
         end
         
         if vehicle and vehicle.Parent then
@@ -1451,7 +1493,20 @@ local function safeCarTeleport(targetPosition)
         
         if alpha >= 1 then
             connection:Disconnect()
-            isTeleporting = false
+            
+            -- Descendre directement au sol à l'arrivée (légèrement dans le sol)
+            wait(0.1)
+            if vehicle and vehicle.Parent then
+                local finalRayOrigin = targetPosition + Vector3.new(0, 50, 0)
+                local finalRayDirection = Vector3.new(0, -100, 0)
+                
+                local finalRayResult = workspace:Raycast(finalRayOrigin, finalRayDirection, raycastParamsGround)
+                
+                if finalRayResult then
+                    local finalPos = Vector3.new(targetPosition.X, finalRayResult.Position.Y + 0.5, targetPosition.Z)
+                    primaryPart.CFrame = CFrame.new(finalPos)
+                end
+            end
             
             wait(0.2)
             for _, part in pairs(vehicle:GetDescendants()) do
@@ -1459,6 +1514,8 @@ local function safeCarTeleport(targetPosition)
                     part.CanCollide = true
                 end
             end
+            
+            isTeleporting = false
             
             Rayfield:Notify({
                 Title = "Success",
