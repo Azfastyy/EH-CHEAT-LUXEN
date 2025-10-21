@@ -2070,17 +2070,76 @@ local Tab = Window:CreateTab("💶｜Auto Farm", 0)
 
 local Tab = Window:CreateTab("👮｜Police", 0)
 
+-- Services
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Remote
+local DamageRemote = ReplicatedStorage.Bnl["91af7f12-cf3e-46cd-955f-87212cb5a1a9"]
+
+-- Variables
+local spinConnection
+local antiDamageConnection
+local originalFireServer = DamageRemote.FireServer
+local selectedPlayer = nil
+
+-- Fonction pour trouver le véhicule du joueur
+local function findPlayerVehicle(playerName)
+    playerName = playerName or LocalPlayer.Name
+    local vehiclesFolder = workspace:FindFirstChild("Vehicles")
+    if not vehiclesFolder then return nil end
+    
+    local playerVehicle = vehiclesFolder:FindFirstChild(playerName)
+    return playerVehicle
+end
+
+-- Fonction pour obtenir la liste des joueurs
+local function getPlayerList()
+    local playerList = {}
+    for _, player in pairs(Players:GetPlayers()) do
+        table.insert(playerList, player.Name)
+    end
+    return playerList
+end
+
 local Tab = Window:CreateTab("🤡｜troll", 0)
 
 local Section = Tab:CreateSection("Spin")
 
+-- Variables pour le spin
+local spinEnabled = false
+local spinSpeed = 10
+
 local Toggle = Tab:CreateToggle({
    Name = "Spin",
    CurrentValue = false,
-   Flag = "spin_toggle", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Flag = "spin_toggle",
    Callback = function(Value)
-   -- The function that takes place when the toggle is pressed
-   -- The variable (Value) is a boolean on whether the toggle is true or false
+       spinEnabled = Value
+       
+       if Value then
+           spinConnection = RunService.Heartbeat:Connect(function()
+               local vehicle = findPlayerVehicle()
+               if not vehicle then return end
+               
+               -- Spam le remote pour faire tourner le véhicule
+               DamageRemote:FireServer(vehicle, spinSpeed)
+           end)
+           
+           Rayfield:Notify({
+               Title = "Spin",
+               Content = "Activated!",
+               Duration = 2,
+               Image = 4483362458,
+           })
+       else
+           if spinConnection then
+               spinConnection:Disconnect()
+               spinConnection = nil
+           end
+       end
    end,
 })
 
@@ -2090,12 +2149,123 @@ local Slider = Tab:CreateSlider({
    Increment = 10,
    Suffix = "speed",
    CurrentValue = 10,
-   Flag = "spin_speed", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Flag = "spin_speed",
    Callback = function(Value)
-   -- The function that takes place when the slider changes
-   -- The variable (Value) is a number which correlates to the value the slider is currently at
+       spinSpeed = Value
    end,
 })
+
+-- Section Kill Car
+local Section3 = Tab:CreateSection("Kill Car")
+
+local Dropdown = Tab:CreateDropdown({
+   Name = "Select Player",
+   Options = getPlayerList(),
+   CurrentOption = {LocalPlayer.Name},
+   MultipleOptions = false,
+   Flag = "player_dropdown",
+   Callback = function(Options)
+       selectedPlayer = Options[1]
+   end,
+})
+
+-- Mettre à jour la liste des joueurs
+Players.PlayerAdded:Connect(function()
+    Dropdown:Refresh(getPlayerList(), true)
+end)
+
+Players.PlayerRemoving:Connect(function()
+    Dropdown:Refresh(getPlayerList(), true)
+end)
+
+local Button = Tab:CreateButton({
+   Name = "Kill Car",
+   Callback = function()
+       if not selectedPlayer then
+           Rayfield:Notify({
+               Title = "Error",
+               Content = "No player selected!",
+               Duration = 2,
+               Image = 4483362458,
+           })
+           return
+       end
+       
+       local targetVehicle = findPlayerVehicle(selectedPlayer)
+       if not targetVehicle then
+           Rayfield:Notify({
+               Title = "Error",
+               Content = selectedPlayer .. " has no vehicle!",
+               Duration = 2,
+               Image = 4483362458,
+           })
+           return
+       end
+       
+       -- Spam le remote 18 fois
+       for i = 1, 18 do
+           DamageRemote:FireServer(targetVehicle, 2601.1297832362407)
+           task.wait(0.05) -- Petit délai entre chaque appel
+       end
+       
+       Rayfield:Notify({
+           Title = "Kill Car",
+           Content = "Sent 18 damage packets to " .. selectedPlayer .. "'s car!",
+           Duration = 3,
+           Image = 4483362458,
+       })
+   end,
+})
+
+-- Section Anti Damage
+local Section2 = Tab:CreateSection("Protection")
+
+Tab:CreateToggle({
+   Name = "Anti crash damage",
+   CurrentValue = false,
+   Flag = "car_anti_crash_toggle",
+   Callback = function(Value)
+       if Value then
+           -- Hook le remote pour bloquer les appels
+           DamageRemote.FireServer = function(self, ...)
+               local args = {...}
+               local vehicle = findPlayerVehicle()
+               
+               -- Bloquer seulement si c'est notre véhicule ET que ce n'est pas nous qui l'appelons
+               if args[1] == vehicle and not spinEnabled then
+                   return -- Bloque le remote
+               end
+               
+               -- Sinon, appeler la fonction originale
+               return originalFireServer(self, ...)
+           end
+           
+           Rayfield:Notify({
+               Title = "Anti Damage",
+               Content = "Remote blocked!",
+               Duration = 2,
+               Image = 4483362458,
+           })
+       else
+           -- Restaurer la fonction originale
+           DamageRemote.FireServer = originalFireServer
+           
+           Rayfield:Notify({
+               Title = "Anti Damage",
+               Content = "Deactivated",
+               Duration = 2,
+               Image = 4483362458,
+           })
+       end
+   end,
+})
+
+-- Cleanup
+LocalPlayer.CharacterRemoving:Connect(function()
+    if spinConnection then spinConnection:Disconnect() end
+    if antiDamageConnection then antiDamageConnection:Disconnect() end
+    DamageRemote.FireServer = originalFireServer -- Restaurer le remote
+end)
 
 local Tab = Window:CreateTab("📦｜Miscs", 0)
 
