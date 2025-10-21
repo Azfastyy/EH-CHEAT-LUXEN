@@ -1234,6 +1234,473 @@ local Tab = Window:CreateTab("🧨｜Weapon Mods", 0)
 
 local Tab = Window:CreateTab("🚀｜Teleports", 0)
 
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+-- Section Vehicle
+local Section = Tab:CreateSection("Vehicle")
+
+-- Fonction pour trouver le véhicule du joueur
+local function findPlayerVehicle()
+    local vehiclesFolder = workspace:FindFirstChild("Vehicles")
+    if not vehiclesFolder then
+        return nil
+    end
+    
+    local playerVehicle = vehiclesFolder:FindFirstChild(LocalPlayer.Name)
+    if playerVehicle then
+        return playerVehicle
+    end
+    
+    for _, vehicle in pairs(vehiclesFolder:GetChildren()) do
+        if vehicle:IsA("Model") then
+            return vehicle
+        end
+    end
+    
+    return nil
+end
+
+-- Fonction pour entrer dans le véhicule
+local function enterVehicle()
+    local vehicle = findPlayerVehicle()
+    
+    if not vehicle then
+        Rayfield:Notify({
+            Title = "Error",
+            Content = "Vehicle not found!",
+            Duration = 3,
+            Image = 4483362458,
+        })
+        return false
+    end
+    
+    local driveSeat = vehicle:FindFirstChild("DriveSeat")
+    
+    if not driveSeat then
+        Rayfield:Notify({
+            Title = "Error",
+            Content = "DriveSeat not found!",
+            Duration = 3,
+            Image = 4483362458,
+        })
+        return false
+    end
+    
+    local character = LocalPlayer.Character
+    if not character then return false end
+    
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return false end
+    
+    -- Téléporter près du siège
+    humanoidRootPart.CFrame = CFrame.new(driveSeat.Position + Vector3.new(0, 3, 0))
+    
+    wait(0.1)
+    
+    -- Entrer dans le véhicule
+    local success = pcall(function()
+        local remote = ReplicatedStorage.Bnl:FindFirstChild("fdffc7c3-4c83-4693-8a33-380ed2d60083")
+        if remote then
+            remote:FireServer(driveSeat, "Oj2", false)
+        end
+    end)
+    
+    wait(0.3)
+    return success
+end
+
+-- Fonction pour sortir du véhicule
+local function exitVehicle()
+    local vehicle = findPlayerVehicle()
+    if not vehicle then return end
+    
+    local driveSeat = vehicle:FindFirstChild("DriveSeat")
+    if not driveSeat then return end
+    
+    pcall(function()
+        local remote = ReplicatedStorage.Bnl:FindFirstChild("fdffc7c3-4c83-4693-8a33-380ed2d60083")
+        if remote then
+            remote:FireServer(driveSeat, "Oj2", true)
+        end
+    end)
+end
+
+-- Téléportation sécurisée en voiture
+local isTeleporting = false
+
+local function safeCarTeleport(targetPosition)
+    if isTeleporting then
+        Rayfield:Notify({
+            Title = "Warning",
+            Content = "Already teleporting!",
+            Duration = 2,
+            Image = 4483362458,
+        })
+        return
+    end
+    
+    isTeleporting = true
+    
+    -- Entrer dans le véhicule
+    Rayfield:Notify({
+        Title = "Teleporting",
+        Content = "Entering vehicle...",
+        Duration = 2,
+        Image = 4483362458,
+    })
+    
+    if not enterVehicle() then
+        isTeleporting = false
+        return
+    end
+    
+    wait(0.5)
+    
+    local vehicle = findPlayerVehicle()
+    if not vehicle then
+        isTeleporting = false
+        return
+    end
+    
+    local primaryPart = vehicle.PrimaryPart or vehicle:FindFirstChild("DriveSeat") or vehicle:FindFirstChildWhichIsA("BasePart")
+    
+    if not primaryPart then
+        isTeleporting = false
+        exitVehicle()
+        return
+    end
+    
+    Rayfield:Notify({
+        Title = "Teleporting",
+        Content = "Driving to location...",
+        Duration = 2,
+        Image = 4483362458,
+    })
+    
+    -- Teleportation progressive
+    local startPos = primaryPart.Position
+    local distance = (targetPosition - startPos).Magnitude
+    local speed = 180 -- km/h max
+    local speedInStuds = speed * 0.277778 -- Conversion km/h en studs/s
+    local duration = distance / speedInStuds
+    
+    local connection
+    local elapsed = 0
+    
+    connection = RunService.Heartbeat:Connect(function(deltaTime)
+        if not isTeleporting then
+            connection:Disconnect()
+            return
+        end
+        
+        elapsed = elapsed + deltaTime
+        local alpha = math.min(elapsed / duration, 1)
+        
+        -- Position interpolée
+        local currentPos = startPos:Lerp(targetPosition, alpha)
+        
+        -- Raycast vers le sol pour rester à hauteur
+        local rayOrigin = currentPos + Vector3.new(0, 50, 0)
+        local rayDirection = Vector3.new(0, -100, 0)
+        
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterDescendantsInstances = {vehicle}
+        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+        
+        local rayResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+        
+        if rayResult then
+            -- Rester légèrement au-dessus du sol (hauteur d'une tête = ~2 studs)
+            currentPos = Vector3.new(currentPos.X, rayResult.Position.Y + 2, currentPos.Z)
+        end
+        
+        -- Déplacer le véhicule
+        if vehicle and vehicle.Parent then
+            -- Désactiver la physique temporairement
+            for _, part in pairs(vehicle:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                    part.Velocity = Vector3.new(0, 0, 0)
+                    part.RotVelocity = Vector3.new(0, 0, 0)
+                end
+            end
+            
+            -- Direction vers la cible
+            local direction = (targetPosition - currentPos).Unit
+            local lookAt = CFrame.new(currentPos, currentPos + direction)
+            
+            primaryPart.CFrame = lookAt
+        else
+            connection:Disconnect()
+            isTeleporting = false
+            return
+        end
+        
+        -- Arrivé à destination
+        if alpha >= 1 then
+            connection:Disconnect()
+            isTeleporting = false
+            
+            -- Réactiver la physique
+            wait(0.2)
+            for _, part in pairs(vehicle:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = true
+                end
+            end
+            
+            Rayfield:Notify({
+                Title = "Success",
+                Content = "Arrived at destination!",
+                Duration = 3,
+                Image = 4483362458,
+            })
+        end
+    end)
+end
+
+-- Boutons de base
+local TeleportToVehicleButton = Tab:CreateButton({
+    Name = "Teleport to Vehicle",
+    Callback = function()
+        enterVehicle()
+    end,
+})
+
+local ExitVehicleButton = Tab:CreateButton({
+    Name = "Exit Vehicle",
+    Callback = function()
+        exitVehicle()
+    end,
+})
+
+local VehicleTeleportKeybind = Tab:CreateKeybind({
+    Name = "Vehicle Keybind",
+    CurrentKeybind = "V",
+    HoldToInteract = false,
+    Flag = "vehicle_keybind",
+    Callback = function()
+        enterVehicle()
+    end,
+})
+
+-- LOCATIONS
+local locations = {
+    -- ILLÉGAL
+    ["Smugler"] = Vector3.new(806.52, -22.27, -1509.20),
+    ["Dealer port"] = Vector3.new(472.37, 5.47, 2332.09),
+    
+    -- JOBS
+    ["Fire station"] = Vector3.new(-966.18, 5.89, 3893.51),
+    ["Police station"] = Vector3.new(-1709.80, 5.47, 2745.59),
+    ["Bus"] = Vector3.new(-1695.07, 5.89, -1276.51),
+    ["Truck"] = Vector3.new(701.12, 6.89, 1456.35),
+    
+    -- ROBBERY
+    ["Bank (out)"] = Vector3.new(-1132.52, 5.47, 3163.31),
+    ["Bank (in)"] = Vector3.new(-1232.90, 7.85, 3162.99),
+    ["Bijou"] = Vector3.new(-342.34, 5.47, 3540.93),
+    ["Nightclub"] = Vector3.new(-1858.91, 5.68, 3012.52),
+    ["Farm shop"] = Vector3.new(-909.49, 5.38, -1171.52),
+    ["Tools shop"] = Vector3.new(-748.87, 5.79, 659.88),
+    ["Clothes shop"] = Vector3.new(470.93, 5.56, -1447.42),
+    ["Yellow container"] = Vector3.new(1120.20, 28.67, 2330.81),
+    ["Green container"] = Vector3.new(1166.88, 28.67, 2153.92),
+    
+    -- GAS
+    ["Ares"] = Vector3.new(-867.67, 5.22, 1509.24),
+    ["Osso"] = Vector3.new(-39.14, 7.15, -757.37),
+    ["GAS n go"] = Vector3.new(-1544.44, 5.70, 3802.51),
+    
+    -- OTHERS
+    ["Hospital"] = Vector3.new(-264.18, 5.47, 1075.02),
+    ["Dealership"] = Vector3.new(-1401.72, 5.48, 951.35),
+    ["Prison (out)"] = Vector3.new(-568.37, 5.48, 2852.52),
+    ["Prison (in)"] = Vector3.new(-503.99, 7.98, 3048.56),
+    ["ADAC"] = Vector3.new(-326.70, 5.64, 508.42),
+    ["Tuning garage"] = Vector3.new(-1445.57, 5.63, 96.19),
+}
+
+-- Sections par catégorie
+local Section2 = Tab:CreateSection("Illegal")
+
+local IllegalDropdown = Tab:CreateDropdown({
+    Name = "Illegal Locations",
+    Options = {"Smugler", "Dealer port"},
+    CurrentOption = "Smugler",
+    Flag = "illegal_dropdown",
+})
+
+local TeleportIllegalButton = Tab:CreateButton({
+    Name = "Teleport (Car)",
+    Callback = function()
+        local selected = IllegalDropdown.CurrentOption
+        if locations[selected] then
+            safeCarTeleport(locations[selected])
+        end
+    end,
+})
+
+local Section3 = Tab:CreateSection("Jobs")
+
+local JobsDropdown = Tab:CreateDropdown({
+    Name = "Jobs Locations",
+    Options = {"Fire station", "Police station", "Bus", "Truck"},
+    CurrentOption = "Fire station",
+    Flag = "jobs_dropdown",
+})
+
+local TeleportJobsButton = Tab:CreateButton({
+    Name = "Teleport (Car)",
+    Callback = function()
+        local selected = JobsDropdown.CurrentOption
+        if locations[selected] then
+            safeCarTeleport(locations[selected])
+        end
+    end,
+})
+
+local Section4 = Tab:CreateSection("Robbery")
+
+local RobberyDropdown = Tab:CreateDropdown({
+    Name = "Robbery Locations",
+    Options = {"Bank (out)", "Bank (in)", "Bijou", "Nightclub", "Farm shop", "Tools shop", "Clothes shop", "Yellow container", "Green container"},
+    CurrentOption = "Bank (out)",
+    Flag = "robbery_dropdown",
+})
+
+local TeleportRobberyButton = Tab:CreateButton({
+    Name = "Teleport (Car)",
+    Callback = function()
+        local selected = RobberyDropdown.CurrentOption
+        if locations[selected] then
+            safeCarTeleport(locations[selected])
+        end
+    end,
+})
+
+local Section5 = Tab:CreateSection("Gas Stations")
+
+local GasDropdown = Tab:CreateDropdown({
+    Name = "Gas Stations",
+    Options = {"Ares", "Osso", "GAS n go"},
+    CurrentOption = "Ares",
+    Flag = "gas_dropdown",
+})
+
+local TeleportGasButton = Tab:CreateButton({
+    Name = "Teleport (Car)",
+    Callback = function()
+        local selected = GasDropdown.CurrentOption
+        if locations[selected] then
+            safeCarTeleport(locations[selected])
+        end
+    end,
+})
+
+local Section6 = Tab:CreateSection("Others")
+
+local OthersDropdown = Tab:CreateDropdown({
+    Name = "Other Locations",
+    Options = {"Hospital", "Dealership", "Prison (out)", "Prison (in)", "ADAC", "Tuning garage"},
+    CurrentOption = "Hospital",
+    Flag = "others_dropdown",
+})
+
+local TeleportOthersButton = Tab:CreateButton({
+    Name = "Teleport (Car)",
+    Callback = function()
+        local selected = OthersDropdown.CurrentOption
+        if locations[selected] then
+            safeCarTeleport(locations[selected])
+        end
+    end,
+})
+
+-- Section Players
+local Section7 = Tab:CreateSection("Players")
+
+local playerNames = {}
+for _, player in pairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        table.insert(playerNames, player.Name)
+    end
+end
+
+local selectedPlayer = playerNames[1] or "None"
+
+local PlayerDropdown = Tab:CreateDropdown({
+    Name = "Select Player",
+    Options = playerNames,
+    CurrentOption = selectedPlayer,
+    Flag = "player_dropdown",
+    Callback = function(Option)
+        selectedPlayer = Option
+    end,
+})
+
+local TeleportToPlayerButton = Tab:CreateButton({
+    Name = "Teleport to Player (Car)",
+    Callback = function()
+        local targetPlayer = Players:FindFirstChild(selectedPlayer)
+        if targetPlayer and targetPlayer.Character then
+            local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if targetRoot then
+                safeCarTeleport(targetRoot.Position)
+            end
+        end
+    end,
+})
+
+local RefreshPlayersButton = Tab:CreateButton({
+    Name = "Refresh Players",
+    Callback = function()
+        playerNames = {}
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                table.insert(playerNames, player.Name)
+            end
+        end
+        
+        Rayfield:Notify({
+            Title = "Refreshed",
+            Content = "Players list updated!",
+            Duration = 2,
+            Image = 4483362458,
+        })
+    end,
+})
+
+-- Stop teleport button
+local Section8 = Tab:CreateSection("Emergency")
+
+local StopTeleportButton = Tab:CreateButton({
+    Name = "STOP Teleport",
+    Callback = function()
+        isTeleporting = false
+        
+        local vehicle = findPlayerVehicle()
+        if vehicle then
+            for _, part in pairs(vehicle:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = true
+                    part.Velocity = Vector3.new(0, 0, 0)
+                end
+            end
+        end
+        
+        Rayfield:Notify({
+            Title = "Stopped",
+            Content = "Teleportation stopped!",
+            Duration = 2,
+            Image = 4483362458,
+        })
+    end,
+})
+
 local Tab = Window:CreateTab("💶｜Auto Farm", 0)
 
 local Tab = Window:CreateTab("👮｜Police", 0)
