@@ -1230,6 +1230,74 @@ local Toggle = Tab:CreateToggle({
 
 local Section = Tab:CreateSection("Car tuning")
 
+
+local CarColorPicker = Tab:CreateColorPicker({
+    Name = "Car Color",
+    Color = Color3.fromRGB(255,255,255),
+    Flag = "car_color",
+    Callback = function(Value)
+    end
+})
+
+local RimsColorPicker = Tab:CreateColorPicker({
+    Name = "Rims Color",
+    Color = Color3.fromRGB(255,255,255),
+    Flag = "rims_color",
+    Callback = function(Value)
+    end
+})
+
+local HeadlightColorPicker = Tab:CreateColorPicker({
+    Name = "Healight Color",
+    Color = Color3.fromRGB(255,255,255),
+    Flag = "headlight_color",
+    Callback = function(Value)
+    end
+})
+
+local EngineSlider = SilentTab:CreateSlider({
+    Name = "Engine Level",
+    Range = {1, 6},
+    Increment = 1,
+    Suffix = "level",
+    CurrentValue = 1,
+    Flag = "engine_level",
+    Callback = function(Value)
+    end,
+})
+
+local BrakesSlider = SilentTab:CreateSlider({
+    Name = "Brakes Level",
+    Range = {1, 6},
+    Increment = 1,
+    Suffix = "level",
+    CurrentValue = 1,
+    Flag = "arakes_level",
+    Callback = function(Value)
+    end,
+})
+
+local ArmorSlider = SilentTab:CreateSlider({
+    Name = "Armor Level",
+    Range = {1, 6},
+    Increment = 1,
+    Suffix = "level",
+    CurrentValue = 1,
+    Flag = "armor_level",
+    Callback = function(Value)
+    end,
+})
+
+local Toggle = Tab:CreateToggle({
+   Name = "Anti crash damage",
+   CurrentValue = false,
+   Flag = "car_anti_crash_toggle", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Callback = function(Value)
+   -- The function that takes place when the toggle is pressed
+   -- The variable (Value) is a boolean on whether the toggle is true or false
+   end,
+})
+
 local Tab = Window:CreateTab("🧨｜Weapon Mods", 0)
 
 local Tab = Window:CreateTab("🚀｜Teleports", 0)
