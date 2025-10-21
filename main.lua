@@ -695,6 +695,262 @@ local AccelToggle = Tab:CreateToggle({
    end,
 })
 
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Section Car Level
+local Section = Tab:CreateSection("Car Level")
+
+-- Fonction pour trouver le vehicule du joueur
+local function getPlayerVehicle()
+    local vehiclesFolder = game.Workspace:FindFirstChild("Vehicles")
+    if not vehiclesFolder then return nil end
+    
+    local playerVehicle = vehiclesFolder:FindFirstChild(LocalPlayer.Name)
+    return playerVehicle
+end
+
+-- Fonction pour convertir Color3 en format hexadecimal
+local function color3ToHex(color)
+    local r = math.floor(color.R * 255)
+    local g = math.floor(color.G * 255)
+    local b = math.floor(color.B * 255)
+    return string.format("%02x%02x%02x", r, g, b)
+end
+
+-- Fonction pour convertir hex en Color3
+local function hexToColor3(hex)
+    hex = hex:gsub("#", "")
+    local r = tonumber(hex:sub(1, 2), 16) / 255
+    local g = tonumber(hex:sub(3, 4), 16) / 255
+    local b = tonumber(hex:sub(5, 6), 16) / 255
+    return Color3.new(r, g, b)
+end
+
+-- Slider Engine Level
+local EngineSlider = Tab:CreateSlider({
+    Name = "Engine Level",
+    Range = {1, 6},
+    Increment = 1,
+    Suffix = "Level",
+    CurrentValue = 1,
+    Flag = "EngineLevel",
+    Callback = function(Value)
+        pcall(function()
+            local vehicle = getPlayerVehicle()
+            if vehicle then
+                vehicle.engineLevel = Value
+                OrionLib:MakeNotification({
+                    Name = "Engine Level",
+                    Content = "Engine level set to " .. Value,
+                    Image = "rbxassetid://4483345998",
+                    Time = 2
+                })
+            else
+                OrionLib:MakeNotification({
+                    Name = "Error",
+                    Content = "Vehicle not found!",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+            end
+        end)
+    end,
+})
+
+-- Slider Brakes Level
+local BrakesSlider = Tab:CreateSlider({
+    Name = "Brakes Level",
+    Range = {1, 6},
+    Increment = 1,
+    Suffix = "Level",
+    CurrentValue = 1,
+    Flag = "BrakesLevel",
+    Callback = function(Value)
+        pcall(function()
+            local vehicle = getPlayerVehicle()
+            if vehicle then
+                vehicle.brakesLevel = Value
+                OrionLib:MakeNotification({
+                    Name = "Brakes Level",
+                    Content = "Brakes level set to " .. Value,
+                    Image = "rbxassetid://4483345998",
+                    Time = 2
+                })
+            else
+                OrionLib:MakeNotification({
+                    Name = "Error",
+                    Content = "Vehicle not found!",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+            end
+        end)
+    end,
+})
+
+-- Slider Armor Level
+local ArmorSlider = Tab:CreateSlider({
+    Name = "Armor Level",
+    Range = {1, 6},
+    Increment = 1,
+    Suffix = "Level",
+    CurrentValue = 1,
+    Flag = "ArmorLevel",
+    Callback = function(Value)
+        pcall(function()
+            local vehicle = getPlayerVehicle()
+            if vehicle then
+                vehicle.armorLevel = Value
+                OrionLib:MakeNotification({
+                    Name = "Armor Level",
+                    Content = "Armor level set to " .. Value,
+                    Image = "rbxassetid://4483345998",
+                    Time = 2
+                })
+            else
+                OrionLib:MakeNotification({
+                    Name = "Error",
+                    Content = "Vehicle not found!",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+            end
+        end)
+    end,
+})
+
+-- ColorPicker Car Color
+local CarColorPicker = Tab:CreateColorpicker({
+    Name = "Car Color",
+    Color = hexToColor3("e1b82d"), -- Couleur par defaut
+    Flag = "CarColor",
+    Callback = function(Value)
+        pcall(function()
+            local vehicle = getPlayerVehicle()
+            if vehicle then
+                local hexColor = color3ToHex(Value)
+                vehicle.color = hexColor
+                OrionLib:MakeNotification({
+                    Name = "Car Color",
+                    Content = "Color changed to #" .. hexColor,
+                    Image = "rbxassetid://4483345998",
+                    Time = 2
+                })
+            else
+                OrionLib:MakeNotification({
+                    Name = "Error",
+                    Content = "Vehicle not found!",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+            end
+        end)
+    end
+})
+
+-- ColorPicker Rims Color
+local RimsColorPicker = Tab:CreateColorpicker({
+    Name = "Rims Color",
+    Color = hexToColor3("e0e5e5"), -- Couleur par defaut
+    Flag = "RimsColor",
+    Callback = function(Value)
+        pcall(function()
+            local vehicle = getPlayerVehicle()
+            if vehicle then
+                local hexColor = color3ToHex(Value)
+                vehicle.rimColor = hexColor
+                OrionLib:MakeNotification({
+                    Name = "Rims Color",
+                    Content = "Rims color changed to #" .. hexColor,
+                    Image = "rbxassetid://4483345998",
+                    Time = 2
+                })
+            else
+                OrionLib:MakeNotification({
+                    Name = "Error",
+                    Content = "Vehicle not found!",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+            end
+        end)
+    end
+})
+
+-- Bouton Infinite Fuel
+local InfiniteFuelButton = Tab:CreateButton({
+    Name = "Infinite Fuel",
+    Callback = function()
+        pcall(function()
+            local vehicle = getPlayerVehicle()
+            if vehicle then
+                vehicle.currentFuel = 99999999999
+                OrionLib:MakeNotification({
+                    Name = "Infinite Fuel",
+                    Content = "Fuel set to infinite!",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+            else
+                OrionLib:MakeNotification({
+                    Name = "Error",
+                    Content = "Vehicle not found!",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+            end
+        end)
+    end,
+})
+
+-- Bouton Anti Crash Damage
+local AntiCrashButton = Tab:CreateButton({
+    Name = "Anti Crash Damage",
+    Callback = function()
+        pcall(function()
+            local vehicle = getPlayerVehicle()
+            if vehicle then
+                vehicle.currentHealth = 9999999999
+                OrionLib:MakeNotification({
+                    Name = "Anti Crash",
+                    Content = "Vehicle health set to max!",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+            else
+                OrionLib:MakeNotification({
+                    Name = "Error",
+                    Content = "Vehicle not found!",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+            end
+        end)
+    end,
+})
+
+-- Auto-refresh des valeurs quand on change de vehicule
+spawn(function()
+    while wait(2) do
+        pcall(function()
+            local vehicle = getPlayerVehicle()
+            if vehicle then
+                -- Mettre a jour les sliders avec les valeurs actuelles
+                if vehicle:FindFirstChild("engineLevel") then
+                    EngineSlider:Set(vehicle.engineLevel)
+                end
+                if vehicle:FindFirstChild("brakesLevel") then
+                    BrakesSlider:Set(vehicle.brakesLevel)
+                end
+                if vehicle:FindFirstChild("armorLevel") then
+                    ArmorSlider:Set(vehicle.armorLevel)
+                end
+            end
+        end)
+    end
+end)
+
 
 local Tab = Window:CreateTab("🧨｜Weapon Mods", 0)
 
