@@ -2340,7 +2340,6 @@ local APPLYBUTTONWHEEL = Tab:CreateButton({
        end
    end,
 })
-
 -- Section License Plate
 local Section3 = Tab:CreateSection("License Plate")
 
