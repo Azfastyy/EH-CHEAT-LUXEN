@@ -2072,6 +2072,122 @@ local Tab = Window:CreateTab("👮｜Police", 0)
 
 -- Services
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+-- Remote
+local TaserRemote = ReplicatedStorage.Bnl["c6011f40-2809-4686-a297-33283dd11715"]
+
+-- Variables
+local autoTaserConnection
+local autoTaserEnabled = false
+
+-- Fonction pour vérifier si le joueur a le taser équipé
+local function hasTaserEquipped()
+    local character = LocalPlayer.Character
+    if not character then return false end
+    
+    local taser = character:FindFirstChild("Taser")
+    return taser ~= nil
+end
+
+-- Fonction pour trouver le joueur Wanted le plus proche
+local function findClosestWantedPlayer()
+    local character = LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return nil end
+    
+    local myPosition = character.HumanoidRootPart.Position
+    local closestPlayer = nil
+    local closestDistance = math.huge
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local targetChar = player.Character
+            if targetChar and targetChar:FindFirstChild("HumanoidRootPart") then
+                -- Vérifier si le joueur est dans l'équipe Wanted
+                local humanoid = targetChar:FindFirstChild("Humanoid")
+                if humanoid and humanoid.Health > 0 then
+                    -- Vérifier la team (ajuste selon le nom exact dans le jeu)
+                    if player.Team and (player.Team.Name == "Wanted" or player.Team.Name == "Criminal" or player.TeamColor == BrickColor.new("Really red")) then
+                        local distance = (targetChar.HumanoidRootPart.Position - myPosition).Magnitude
+                        
+                        -- Seulement si à portée raisonnable (ex: 50 studs)
+                        if distance < 50 and distance < closestDistance then
+                            closestDistance = distance
+                            closestPlayer = player
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    return closestPlayer
+end
+
+-- Section Auto Taser
+local Section = Tab:CreateSection("Auto Taser")
+
+local Toggle = Tab:CreateToggle({
+   Name = "Auto Taser",
+   CurrentValue = false,
+   Flag = "auto_taser_toggle",
+   Callback = function(Value)
+       autoTaserEnabled = Value
+       
+       if Value then
+           autoTaserConnection = RunService.Heartbeat:Connect(function()
+               -- Vérifier si on a le taser équipé
+               if not hasTaserEquipped() then return end
+               
+               local character = LocalPlayer.Character
+               if not character or not character:FindFirstChild("Taser") then return end
+               
+               local taser = character.Taser
+               local targetPlayer = findClosestWantedPlayer()
+               
+               if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                   local targetPosition = targetPlayer.Character.HumanoidRootPart.Position
+                   local myPosition = character.HumanoidRootPart.Position
+                   
+                   -- Calculer la direction vers la cible
+                   local direction = (targetPosition - myPosition).Unit
+                   
+                   pcall(function()
+                       TaserRemote:FireServer(
+                           taser,
+                           targetPosition,
+                           direction
+                       )
+                   end)
+               end
+           end)
+           
+           Rayfield:Notify({
+               Title = "Auto Taser",
+               Content = "Activated! Equip taser to use.",
+               Duration = 2,
+               Image = 4483362458,
+           })
+       else
+           if autoTaserConnection then
+               autoTaserConnection:Disconnect()
+               autoTaserConnection = nil
+           end
+           
+           Rayfield:Notify({
+               Title = "Auto Taser",
+               Content = "Deactivated",
+               Duration = 2,
+               Image = 4483362458,
+           })
+       end
+   end,
+})
+
+-- Services
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
