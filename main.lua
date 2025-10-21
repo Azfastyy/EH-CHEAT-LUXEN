@@ -2444,4 +2444,265 @@ local Tab = Window:CreateTab("✏️｜Credits", 0)
 
 local Label = Tab:CreateLabel("Created & owned by Azfa & Vamp 🧛", 0, Color3.fromRGB(255, 255, 255), false) -- Title, Icon, Color, IgnoreTheme
 
+
+
+local Tab = Window:CreateTab("🔧｜Garage", 0)
+
+-- Services
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Remotes
+local CloseGarageRemote = ReplicatedStorage.Bnl["5778d7bc-766f-4bac-a776-90dbae34de81"]
+local RepairRemote = ReplicatedStorage.Bnl["82989333-9a1a-4577-8df4-a09797284011"]
+local CarColorRemote = ReplicatedStorage.Bnl["a57a7cba-6681-43f3-bfe3-72e368ea953e"]
+local LicensePlateRemote = ReplicatedStorage["6WP"]["43a9ce6a-daff-47f3-a3f0-3fdcee2fea1c"]
+local EngineRemote = ReplicatedStorage.Bnl["742ec593-0e80-4fbe-987c-b53c8a45efb1"]
+local BrakeRemote = ReplicatedStorage.Bnl["ae7cdaff-0ba0-4647-8cf1-a3c7e8f30228"]
+local ArmorRemote = ReplicatedStorage.Bnl["6b043f6c-0b28-46df-a735-73ee58d66ca0"]
+local WheelColorRemote = ReplicatedStorage.Bnl["97634261-49f5-4f76-ae3e-c14da26b609f"]
+local PayRemote = ReplicatedStorage.Bnl["f0a778c6-ce1d-4d62-b34f-de692b648aca"]
+
+-- Variables
+local selectedEngine = 6
+local selectedBrake = 6
+local selectedArmor = 6
+local selectedCarColor = Color3.fromRGB(255, 255, 255)
+local selectedWheelColor = Color3.fromRGB(255, 255, 255)
+
+-- Section Upgrades
+local Section1 = Tab:CreateSection("Performance Upgrades")
+
+local EngineSlider = Tab:CreateSlider({
+   Name = "Engine Level",
+   Range = {0, 6},
+   Increment = 1,
+   Suffix = " lvl",
+   CurrentValue = 6,
+   Flag = "engine_level",
+   Callback = function(Value)
+       selectedEngine = Value
+   end,
+})
+
+local BrakeSlider = Tab:CreateSlider({
+   Name = "Brake Level",
+   Range = {0, 6},
+   Increment = 1,
+   Suffix = " lvl",
+   CurrentValue = 6,
+   Flag = "brake_level",
+   Callback = function(Value)
+       selectedBrake = Value
+   end,
+})
+
+local ArmorSlider = Tab:CreateSlider({
+   Name = "Armor Level",
+   Range = {0, 6},
+   Increment = 1,
+   Suffix = " lvl",
+   CurrentValue = 6,
+   Flag = "armor_level",
+   Callback = function(Value)
+       selectedArmor = Value
+   end,
+})
+
+local ApplyUpgradesButton = Tab:CreateButton({
+   Name = "Apply Max Upgrades (FREE)",
+   Callback = function()
+       pcall(function()
+           -- Envoyer les niveaux max
+           EngineRemote:FireServer(selectedEngine)
+           task.wait(0.1)
+           BrakeRemote:FireServer(selectedBrake)
+           task.wait(0.1)
+           ArmorRemote:FireServer(selectedArmor)
+           task.wait(0.1)
+           
+           -- Essayer de payer (bypass si pas sécurisé)
+           PayRemote:FireServer()
+           
+           Rayfield:Notify({
+               Title = "Upgrades",
+               Content = "Max upgrades applied!",
+               Duration = 2,
+               Image = 4483362458,
+           })
+       end)
+   end,
+})
+
+-- Section Colors
+local Section2 = Tab:CreateSection("Colors")
+
+local CarColorInput = Tab:CreateInput({
+   Name = "Car Color (HEX)",
+   PlaceholderText = "#FFFFFF",
+   RemoveTextAfterFocusLost = false,
+   Flag = "car_color_hex",
+   Callback = function(Text)
+       -- Convertir HEX en RGB
+       local hex = Text:gsub("#", "")
+       if #hex == 6 then
+           local r = tonumber(hex:sub(1,2), 16)
+           local g = tonumber(hex:sub(3,4), 16)
+           local b = tonumber(hex:sub(5,6), 16)
+           if r and g and b then
+               selectedCarColor = Color3.fromRGB(r, g, b)
+           end
+       end
+   end,
+})
+
+local ApplyCarColorButton = Tab:CreateButton({
+   Name = "Apply Car Color (FREE)",
+   Callback = function()
+       pcall(function()
+           CarColorRemote:FireServer(selectedCarColor)
+           
+           Rayfield:Notify({
+               Title = "Color",
+               Content = "Car color changed!",
+               Duration = 2,
+               Image = 4483362458,
+           })
+       end)
+   end,
+})
+
+local WheelColorInput = Tab:CreateInput({
+   Name = "Wheel Color (HEX)",
+   PlaceholderText = "#FFFFFF",
+   RemoveTextAfterFocusLost = false,
+   Flag = "wheel_color_hex",
+   Callback = function(Text)
+       local hex = Text:gsub("#", "")
+       if #hex == 6 then
+           local r = tonumber(hex:sub(1,2), 16)
+           local g = tonumber(hex:sub(3,4), 16)
+           local b = tonumber(hex:sub(5,6), 16)
+           if r and g and b then
+               selectedWheelColor = Color3.fromRGB(r, g, b)
+           end
+       end
+   end,
+})
+
+local ApplyWheelColorButton = Tab:CreateButton({
+   Name = "Apply Wheel Color (FREE)",
+   Callback = function()
+       pcall(function()
+           WheelColorRemote:FireServer(selectedWheelColor)
+           
+           Rayfield:Notify({
+               Title = "Color",
+               Content = "Wheel color changed!",
+               Duration = 2,
+               Image = 4483362458,
+           })
+       end)
+   end,
+})
+
+-- Section License Plate
+local Section3 = Tab:CreateSection("License Plate")
+
+local plateText1 = "AA"
+local plateText2 = "EN"
+local plateText3 = "86"
+
+local PlateInput1 = Tab:CreateInput({
+   Name = "Plate Part 1",
+   PlaceholderText = "AA",
+   RemoveTextAfterFocusLost = false,
+   Flag = "plate_1",
+   Callback = function(Text)
+       plateText1 = Text:upper()
+   end,
+})
+
+local PlateInput2 = Tab:CreateInput({
+   Name = "Plate Part 2",
+   PlaceholderText = "EN",
+   RemoveTextAfterFocusLost = false,
+   Flag = "plate_2",
+   Callback = function(Text)
+       plateText2 = Text:upper()
+   end,
+})
+
+local PlateInput3 = Tab:CreateInput({
+   Name = "Plate Part 3",
+   PlaceholderText = "86",
+   RemoveTextAfterFocusLost = false,
+   Flag = "plate_3",
+   Callback = function(Text)
+       plateText3 = Text:upper()
+   end,
+})
+
+local ApplyPlateButton = Tab:CreateButton({
+   Name = "Apply License Plate",
+   Callback = function()
+       pcall(function()
+           LicensePlateRemote:FireServer(0, plateText1, plateText2, plateText3)
+           
+           Rayfield:Notify({
+               Title = "License Plate",
+               Content = "Plate changed to: " .. plateText1 .. " " .. plateText2 .. " " .. plateText3,
+               Duration = 2,
+               Image = 4483362458,
+           })
+       end)
+   end,
+})
+
+-- Section Quick Actions
+local Section4 = Tab:CreateSection("Quick Actions")
+
+local RepairButton = Tab:CreateButton({
+   Name = "Instant Repair (FREE)",
+   Callback = function()
+       pcall(function()
+           RepairRemote:FireServer()
+           
+           Rayfield:Notify({
+               Title = "Repair",
+               Content = "Vehicle repaired!",
+               Duration = 2,
+               Image = 4483362458,
+           })
+       end)
+   end,
+})
+
+local QuickMaxButton = Tab:CreateButton({
+   Name = "⚡ Quick Max Everything (FREE)",
+   Callback = function()
+       pcall(function()
+           -- Max upgrades
+           EngineRemote:FireServer(6)
+           task.wait(0.05)
+           BrakeRemote:FireServer(6)
+           task.wait(0.05)
+           ArmorRemote:FireServer(6)
+           task.wait(0.05)
+           
+           -- Essayer de valider sans payer
+           PayRemote:FireServer()
+           
+           Rayfield:Notify({
+               Title = "Quick Max",
+               Content = "All upgrades maxed out!",
+               Duration = 2,
+               Image = 4483362458,
+           })
+       end)
+   end,
+})
+
+
 Rayfield:LoadConfiguration()
