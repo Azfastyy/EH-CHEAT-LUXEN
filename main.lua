@@ -510,46 +510,60 @@ local Tab = Window:CreateTab("🛡️｜Aimbot", 0)
 local Section = Tab:CreateSection("Aimbot Settings")
 
 -- Charger Aimbot V3 d'Exunys
+-- Charger Aimbot V3 d'Exunys
 local AimbotLoaded = false
 local AimbotModule = nil
 
 local function LoadAimbotV3()
     if not AimbotLoaded then
-        pcall(function()
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/Exunys/Aimbot-V3/main/src/Aimbot.lua"))()
-            AimbotModule = getgenv().ExunysDeveloperAimbot
-            AimbotLoaded = true
+        local success, err = pcall(function()
+            local scriptContent = game:HttpGet("https://raw.githubusercontent.com/Exunys/Aimbot-V3/main/src/Aimbot.lua")
+            local loadedFunc = loadstring(scriptContent)
             
-            -- Configuration par défaut
-            AimbotModule.Settings.Enabled = false
-            AimbotModule.Settings.TeamCheck = true
-            AimbotModule.Settings.AliveCheck = true
-            AimbotModule.Settings.WallCheck = false
-            AimbotModule.Settings.Sensitivity = 0.1
-            AimbotModule.Settings.LockMode = 1 -- CFrame mode
-            AimbotModule.Settings.LockPart = "Head"
-            AimbotModule.Settings.TriggerKey = Enum.UserInputType.MouseButton2
-            AimbotModule.Settings.Toggle = false
-            
-            -- FOV Settings
-            AimbotModule.FOVSettings.Enabled = true
-            AimbotModule.FOVSettings.Visible = true
-            AimbotModule.FOVSettings.Radius = 200
-            AimbotModule.FOVSettings.Filled = false
-            AimbotModule.FOVSettings.Color = Color3.fromRGB(255, 0, 0)
-            AimbotModule.FOVSettings.Transparency = 1
-            
-            Rayfield:Notify({
-                Title = "Aimbot V3",
-                Content = "Loaded successfully!",
-                Duration = 3,
-                Image = 4483362458,
-            })
+            if loadedFunc and type(loadedFunc) == "function" then
+                loadedFunc()
+                AimbotModule = getgenv().ExunysDeveloperAimbot
+                AimbotLoaded = true
+                
+                -- Configuration par défaut
+                if AimbotModule then
+                    AimbotModule.Settings.Enabled = false
+                    AimbotModule.Settings.TeamCheck = true
+                    AimbotModule.Settings.AliveCheck = true
+                    AimbotModule.Settings.WallCheck = false
+                    AimbotModule.Settings.Sensitivity = 0.1
+                    AimbotModule.Settings.LockMode = 1
+                    AimbotModule.Settings.LockPart = "Head"
+                    AimbotModule.Settings.TriggerKey = Enum.UserInputType.MouseButton2
+                    AimbotModule.Settings.Toggle = false
+                    
+                    AimbotModule.FOVSettings.Enabled = true
+                    AimbotModule.FOVSettings.Visible = true
+                    AimbotModule.FOVSettings.Radius = 200
+                    AimbotModule.FOVSettings.Filled = false
+                    AimbotModule.FOVSettings.Color = Color3.fromRGB(255, 0, 0)
+                    AimbotModule.FOVSettings.Transparency = 1
+                    
+                    Rayfield:Notify({
+                        Title = "Aimbot V3",
+                        Content = "Loaded successfully!",
+                        Duration = 3,
+                        Image = 4483362458,
+                    })
+                end
+            else
+                warn("Aimbot script failed to load")
+            end
         end)
+        
+        if not success then
+            warn("Error loading Aimbot:", err)
+        end
     end
 end
 
--- Charger au démarrage
+-- Charger au démarrage avec un délai
+task.wait(1)
 LoadAimbotV3()
 
 -- UI Controls
