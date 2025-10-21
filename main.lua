@@ -594,7 +594,6 @@ local carAccelEnabled = false
 local carAccelValue = 0
 local carMaxSpeedValue = 200
 
-
 -- Fonction pour trouver le véhicule du joueur
 local function findPlayerVehicle()
     local vehiclesFolder = workspace:FindFirstChild("Vehicles")
@@ -638,13 +637,11 @@ local function applyCarMods()
         
         local vehicleStats = vehicle:FindFirstChild("Stats")
         if vehicleStats then
-            -- Modifier la vitesse max
             local maxSpeed = vehicleStats:FindFirstChild("MaxSpeed")
             if maxSpeed then
                 maxSpeed.Value = carMaxSpeedValue
             end
             
-            -- Modifier l'accélération si activée
             if carAccelEnabled then
                 local accel = vehicleStats:FindFirstChild("Acceleration")
                 if accel then
@@ -695,9 +692,6 @@ local AccelToggle = Tab:CreateToggle({
    end,
 })
 
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-
 -- Section Car Level
 local Section = Tab:CreateSection("Car Level")
 
@@ -732,7 +726,7 @@ local EngineSlider = Tab:CreateSlider({
     Name = "Engine Level",
     Range = {1, 6},
     Increment = 1,
-    Suffix = "Level",
+    Suffix = " Level",
     CurrentValue = 1,
     Flag = "EngineLevel",
     Callback = function(Value)
@@ -740,18 +734,18 @@ local EngineSlider = Tab:CreateSlider({
             local vehicle = getPlayerVehicle()
             if vehicle then
                 vehicle.engineLevel = Value
-                OrionLib:MakeNotification({
-                    Name = "Engine Level",
+                Rayfield:Notify({
+                    Title = "Engine Level",
                     Content = "Engine level set to " .. Value,
-                    Image = "rbxassetid://4483345998",
-                    Time = 2
+                    Duration = 2,
+                    Image = 4483362458
                 })
             else
-                OrionLib:MakeNotification({
-                    Name = "Error",
+                Rayfield:Notify({
+                    Title = "Error",
                     Content = "Vehicle not found!",
-                    Image = "rbxassetid://4483345998",
-                    Time = 3
+                    Duration = 3,
+                    Image = 4483362458
                 })
             end
         end)
@@ -763,7 +757,7 @@ local BrakesSlider = Tab:CreateSlider({
     Name = "Brakes Level",
     Range = {1, 6},
     Increment = 1,
-    Suffix = "Level",
+    Suffix = " Level",
     CurrentValue = 1,
     Flag = "BrakesLevel",
     Callback = function(Value)
@@ -771,18 +765,18 @@ local BrakesSlider = Tab:CreateSlider({
             local vehicle = getPlayerVehicle()
             if vehicle then
                 vehicle.brakesLevel = Value
-                OrionLib:MakeNotification({
-                    Name = "Brakes Level",
+                Rayfield:Notify({
+                    Title = "Brakes Level",
                     Content = "Brakes level set to " .. Value,
-                    Image = "rbxassetid://4483345998",
-                    Time = 2
+                    Duration = 2,
+                    Image = 4483362458
                 })
             else
-                OrionLib:MakeNotification({
-                    Name = "Error",
+                Rayfield:Notify({
+                    Title = "Error",
                     Content = "Vehicle not found!",
-                    Image = "rbxassetid://4483345998",
-                    Time = 3
+                    Duration = 3,
+                    Image = 4483362458
                 })
             end
         end)
@@ -794,7 +788,7 @@ local ArmorSlider = Tab:CreateSlider({
     Name = "Armor Level",
     Range = {1, 6},
     Increment = 1,
-    Suffix = "Level",
+    Suffix = " Level",
     CurrentValue = 1,
     Flag = "ArmorLevel",
     Callback = function(Value)
@@ -802,18 +796,18 @@ local ArmorSlider = Tab:CreateSlider({
             local vehicle = getPlayerVehicle()
             if vehicle then
                 vehicle.armorLevel = Value
-                OrionLib:MakeNotification({
-                    Name = "Armor Level",
+                Rayfield:Notify({
+                    Title = "Armor Level",
                     Content = "Armor level set to " .. Value,
-                    Image = "rbxassetid://4483345998",
-                    Time = 2
+                    Duration = 2,
+                    Image = 4483362458
                 })
             else
-                OrionLib:MakeNotification({
-                    Name = "Error",
+                Rayfield:Notify({
+                    Title = "Error",
                     Content = "Vehicle not found!",
-                    Image = "rbxassetid://4483345998",
-                    Time = 3
+                    Duration = 3,
+                    Image = 4483362458
                 })
             end
         end)
@@ -823,7 +817,7 @@ local ArmorSlider = Tab:CreateSlider({
 -- ColorPicker Car Color
 local CarColorPicker = Tab:CreateColorpicker({
     Name = "Car Color",
-    Color = hexToColor3("e1b82d"), -- Couleur par defaut
+    Color = hexToColor3("e1b82d"),
     Flag = "CarColor",
     Callback = function(Value)
         pcall(function()
@@ -831,18 +825,18 @@ local CarColorPicker = Tab:CreateColorpicker({
             if vehicle then
                 local hexColor = color3ToHex(Value)
                 vehicle.color = hexColor
-                OrionLib:MakeNotification({
-                    Name = "Car Color",
+                Rayfield:Notify({
+                    Title = "Car Color",
                     Content = "Color changed to #" .. hexColor,
-                    Image = "rbxassetid://4483345998",
-                    Time = 2
+                    Duration = 2,
+                    Image = 4483362458
                 })
             else
-                OrionLib:MakeNotification({
-                    Name = "Error",
+                Rayfield:Notify({
+                    Title = "Error",
                     Content = "Vehicle not found!",
-                    Image = "rbxassetid://4483345998",
-                    Time = 3
+                    Duration = 3,
+                    Image = 4483362458
                 })
             end
         end)
@@ -852,7 +846,7 @@ local CarColorPicker = Tab:CreateColorpicker({
 -- ColorPicker Rims Color
 local RimsColorPicker = Tab:CreateColorpicker({
     Name = "Rims Color",
-    Color = hexToColor3("e0e5e5"), -- Couleur par defaut
+    Color = hexToColor3("e0e5e5"),
     Flag = "RimsColor",
     Callback = function(Value)
         pcall(function()
@@ -860,18 +854,18 @@ local RimsColorPicker = Tab:CreateColorpicker({
             if vehicle then
                 local hexColor = color3ToHex(Value)
                 vehicle.rimColor = hexColor
-                OrionLib:MakeNotification({
-                    Name = "Rims Color",
+                Rayfield:Notify({
+                    Title = "Rims Color",
                     Content = "Rims color changed to #" .. hexColor,
-                    Image = "rbxassetid://4483345998",
-                    Time = 2
+                    Duration = 2,
+                    Image = 4483362458
                 })
             else
-                OrionLib:MakeNotification({
-                    Name = "Error",
+                Rayfield:Notify({
+                    Title = "Error",
                     Content = "Vehicle not found!",
-                    Image = "rbxassetid://4483345998",
-                    Time = 3
+                    Duration = 3,
+                    Image = 4483362458
                 })
             end
         end)
@@ -886,18 +880,18 @@ local InfiniteFuelButton = Tab:CreateButton({
             local vehicle = getPlayerVehicle()
             if vehicle then
                 vehicle.currentFuel = 99999999999
-                OrionLib:MakeNotification({
-                    Name = "Infinite Fuel",
+                Rayfield:Notify({
+                    Title = "Infinite Fuel",
                     Content = "Fuel set to infinite!",
-                    Image = "rbxassetid://4483345998",
-                    Time = 3
+                    Duration = 3,
+                    Image = 4483362458
                 })
             else
-                OrionLib:MakeNotification({
-                    Name = "Error",
+                Rayfield:Notify({
+                    Title = "Error",
                     Content = "Vehicle not found!",
-                    Image = "rbxassetid://4483345998",
-                    Time = 3
+                    Duration = 3,
+                    Image = 4483362458
                 })
             end
         end)
@@ -912,31 +906,30 @@ local AntiCrashButton = Tab:CreateButton({
             local vehicle = getPlayerVehicle()
             if vehicle then
                 vehicle.currentHealth = 9999999999
-                OrionLib:MakeNotification({
-                    Name = "Anti Crash",
+                Rayfield:Notify({
+                    Title = "Anti Crash",
                     Content = "Vehicle health set to max!",
-                    Image = "rbxassetid://4483345998",
-                    Time = 3
+                    Duration = 3,
+                    Image = 4483362458
                 })
             else
-                OrionLib:MakeNotification({
-                    Name = "Error",
+                Rayfield:Notify({
+                    Title = "Error",
                     Content = "Vehicle not found!",
-                    Image = "rbxassetid://4483345998",
-                    Time = 3
+                    Duration = 3,
+                    Image = 4483362458
                 })
             end
         end)
     end,
 })
 
--- Auto-refresh des valeurs quand on change de vehicule
+-- Auto-refresh des valeurs
 spawn(function()
     while wait(2) do
         pcall(function()
             local vehicle = getPlayerVehicle()
             if vehicle then
-                -- Mettre a jour les sliders avec les valeurs actuelles
                 if vehicle:FindFirstChild("engineLevel") then
                     EngineSlider:Set(vehicle.engineLevel)
                 end
