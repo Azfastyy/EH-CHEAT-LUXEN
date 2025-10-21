@@ -815,7 +815,7 @@ local ArmorSlider = Tab:CreateSlider({
 })
 
 -- ColorPicker Car Color
-local CarColorPicker = Tab:CreateColorpicker({
+local CarColorPicker = Tab:CreateColorPicker({
     Name = "Car Color",
     Color = hexToColor3("e1b82d"),
     Flag = "CarColor",
@@ -844,7 +844,7 @@ local CarColorPicker = Tab:CreateColorpicker({
 })
 
 -- ColorPicker Rims Color
-local RimsColorPicker = Tab:CreateColorpicker({
+local RimsColorPicker = Tab:CreateColorPicker({
     Name = "Rims Color",
     Color = hexToColor3("e0e5e5"),
     Flag = "RimsColor",
