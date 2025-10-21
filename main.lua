@@ -601,14 +601,16 @@ local function findPlayerVehicle()
         return nil
     end
     
+    -- Chercher le Model avec le nom du joueur
     local playerVehicle = vehiclesFolder:FindFirstChild(LocalPlayer.Name)
-    if playerVehicle then
+    if playerVehicle and playerVehicle:IsA("Model") then
         return playerVehicle
     end
     
+    -- Sinon chercher par DriveSeat
     for _, vehicle in pairs(vehiclesFolder:GetChildren()) do
         if vehicle:IsA("Model") then
-            local driveSeat = vehicle:FindFirstChild("DriveSeat")
+            local driveSeat = vehicle:FindFirstChild("DriveSeat", true) -- true = recursive
             if driveSeat and driveSeat.Occupant then
                 local humanoid = driveSeat.Occupant
                 if humanoid.Parent == LocalPlayer.Character then
@@ -695,15 +697,6 @@ local AccelToggle = Tab:CreateToggle({
 -- Section Car Level
 local Section = Tab:CreateSection("Car Level")
 
--- Fonction pour trouver le vehicule du joueur
-local function getPlayerVehicle()
-    local vehiclesFolder = game.Workspace:FindFirstChild("Vehicles")
-    if not vehiclesFolder then return nil end
-    
-    local playerVehicle = vehiclesFolder:FindFirstChild(LocalPlayer.Name)
-    return playerVehicle
-end
-
 -- Fonction pour convertir Color3 en format hexadecimal
 local function color3ToHex(color)
     local r = math.floor(color.R * 255)
@@ -731,9 +724,21 @@ local EngineSlider = Tab:CreateSlider({
     Flag = "EngineLevel",
     Callback = function(Value)
         pcall(function()
-            local vehicle = getPlayerVehicle()
+            local vehicle = findPlayerVehicle()
             if vehicle then
-                vehicle.engineLevel = Value
+                -- Modifier directement sur le Model
+                vehicle:SetAttribute("engineLevel", Value)
+                -- Ou si c'est une propriété normale:
+                if vehicle:FindFirstChild("engineLevel") then
+                    vehicle.engineLevel.Value = Value
+                else
+                    -- Créer la propriété si elle n'existe pas
+                    local attr = Instance.new("IntValue")
+                    attr.Name = "engineLevel"
+                    attr.Value = Value
+                    attr.Parent = vehicle
+                end
+                
                 Rayfield:Notify({
                     Title = "Engine Level",
                     Content = "Engine level set to " .. Value,
@@ -743,7 +748,7 @@ local EngineSlider = Tab:CreateSlider({
             else
                 Rayfield:Notify({
                     Title = "Error",
-                    Content = "Vehicle not found!",
+                    Content = "Vehicle not found! Are you in a vehicle?",
                     Duration = 3,
                     Image = 4483362458
                 })
@@ -762,9 +767,18 @@ local BrakesSlider = Tab:CreateSlider({
     Flag = "BrakesLevel",
     Callback = function(Value)
         pcall(function()
-            local vehicle = getPlayerVehicle()
+            local vehicle = findPlayerVehicle()
             if vehicle then
-                vehicle.brakesLevel = Value
+                vehicle:SetAttribute("brakesLevel", Value)
+                if vehicle:FindFirstChild("brakesLevel") then
+                    vehicle.brakesLevel.Value = Value
+                else
+                    local attr = Instance.new("IntValue")
+                    attr.Name = "brakesLevel"
+                    attr.Value = Value
+                    attr.Parent = vehicle
+                end
+                
                 Rayfield:Notify({
                     Title = "Brakes Level",
                     Content = "Brakes level set to " .. Value,
@@ -793,9 +807,18 @@ local ArmorSlider = Tab:CreateSlider({
     Flag = "ArmorLevel",
     Callback = function(Value)
         pcall(function()
-            local vehicle = getPlayerVehicle()
+            local vehicle = findPlayerVehicle()
             if vehicle then
-                vehicle.armorLevel = Value
+                vehicle:SetAttribute("armorLevel", Value)
+                if vehicle:FindFirstChild("armorLevel") then
+                    vehicle.armorLevel.Value = Value
+                else
+                    local attr = Instance.new("IntValue")
+                    attr.Name = "armorLevel"
+                    attr.Value = Value
+                    attr.Parent = vehicle
+                end
+                
                 Rayfield:Notify({
                     Title = "Armor Level",
                     Content = "Armor level set to " .. Value,
@@ -821,10 +844,21 @@ local CarColorPicker = Tab:CreateColorPicker({
     Flag = "CarColor",
     Callback = function(Value)
         pcall(function()
-            local vehicle = getPlayerVehicle()
+            local vehicle = findPlayerVehicle()
             if vehicle then
                 local hexColor = color3ToHex(Value)
-                vehicle.color = hexColor
+                
+                -- Modifier directement sur le Model
+                vehicle:SetAttribute("color", hexColor)
+                if vehicle:FindFirstChild("color") then
+                    vehicle.color.Value = hexColor
+                else
+                    local attr = Instance.new("StringValue")
+                    attr.Name = "color"
+                    attr.Value = hexColor
+                    attr.Parent = vehicle
+                end
+                
                 Rayfield:Notify({
                     Title = "Car Color",
                     Content = "Color changed to #" .. hexColor,
@@ -850,10 +884,20 @@ local RimsColorPicker = Tab:CreateColorPicker({
     Flag = "RimsColor",
     Callback = function(Value)
         pcall(function()
-            local vehicle = getPlayerVehicle()
+            local vehicle = findPlayerVehicle()
             if vehicle then
                 local hexColor = color3ToHex(Value)
-                vehicle.rimColor = hexColor
+                
+                vehicle:SetAttribute("rimColor", hexColor)
+                if vehicle:FindFirstChild("rimColor") then
+                    vehicle.rimColor.Value = hexColor
+                else
+                    local attr = Instance.new("StringValue")
+                    attr.Name = "rimColor"
+                    attr.Value = hexColor
+                    attr.Parent = vehicle
+                end
+                
                 Rayfield:Notify({
                     Title = "Rims Color",
                     Content = "Rims color changed to #" .. hexColor,
@@ -877,9 +921,18 @@ local InfiniteFuelButton = Tab:CreateButton({
     Name = "Infinite Fuel",
     Callback = function()
         pcall(function()
-            local vehicle = getPlayerVehicle()
+            local vehicle = findPlayerVehicle()
             if vehicle then
-                vehicle.currentFuel = 99999999999
+                vehicle:SetAttribute("currentFuel", 99999999999)
+                if vehicle:FindFirstChild("currentFuel") then
+                    vehicle.currentFuel.Value = 99999999999
+                else
+                    local attr = Instance.new("NumberValue")
+                    attr.Name = "currentFuel"
+                    attr.Value = 99999999999
+                    attr.Parent = vehicle
+                end
+                
                 Rayfield:Notify({
                     Title = "Infinite Fuel",
                     Content = "Fuel set to infinite!",
@@ -903,9 +956,18 @@ local AntiCrashButton = Tab:CreateButton({
     Name = "Anti Crash Damage",
     Callback = function()
         pcall(function()
-            local vehicle = getPlayerVehicle()
+            local vehicle = findPlayerVehicle()
             if vehicle then
-                vehicle.currentHealth = 9999999999
+                vehicle:SetAttribute("currentHealth", 9999999999)
+                if vehicle:FindFirstChild("currentHealth") then
+                    vehicle.currentHealth.Value = 9999999999
+                else
+                    local attr = Instance.new("NumberValue")
+                    attr.Name = "currentHealth"
+                    attr.Value = 9999999999
+                    attr.Parent = vehicle
+                end
+                
                 Rayfield:Notify({
                     Title = "Anti Crash",
                     Content = "Vehicle health set to max!",
@@ -924,25 +986,45 @@ local AntiCrashButton = Tab:CreateButton({
     end,
 })
 
--- Auto-refresh des valeurs
-spawn(function()
-    while wait(2) do
-        pcall(function()
-            local vehicle = getPlayerVehicle()
-            if vehicle then
-                if vehicle:FindFirstChild("engineLevel") then
-                    EngineSlider:Set(vehicle.engineLevel)
-                end
-                if vehicle:FindFirstChild("brakesLevel") then
-                    BrakesSlider:Set(vehicle.brakesLevel)
-                end
-                if vehicle:FindFirstChild("armorLevel") then
-                    ArmorSlider:Set(vehicle.armorLevel)
+-- Debug: Afficher les proprietes du vehicule
+Tab:CreateButton({
+    Name = "Debug: Show Vehicle Properties",
+    Callback = function()
+        local vehicle = findPlayerVehicle()
+        if vehicle then
+            print("===== VEHICLE PROPERTIES =====")
+            print("Vehicle Name:", vehicle.Name)
+            
+            -- Afficher les Attributes
+            print("\n--- Attributes ---")
+            for name, value in pairs(vehicle:GetAttributes()) do
+                print(name, "=", value)
+            end
+            
+            -- Afficher les enfants (Values)
+            print("\n--- Children (Values) ---")
+            for _, child in pairs(vehicle:GetChildren()) do
+                if child:IsA("ValueBase") then
+                    print(child.ClassName, child.Name, "=", child.Value)
                 end
             end
-        end)
+            
+            Rayfield:Notify({
+                Title = "Debug",
+                Content = "Check console (F9) for vehicle properties",
+                Duration = 3,
+                Image = 4483362458
+            })
+        else
+            Rayfield:Notify({
+                Title = "Error",
+                Content = "No vehicle found!",
+                Duration = 3,
+                Image = 4483362458
+            })
+        end
     end
-end)
+})
 
 
 local Tab = Window:CreateTab("🧨｜Weapon Mods", 0)
