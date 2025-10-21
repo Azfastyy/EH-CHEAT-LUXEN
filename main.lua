@@ -2267,7 +2267,6 @@ local BUTTONAPPLY = Tab:CreateButton({
    end,
 })
 
--- Section Colors
 local Section2 = Tab:CreateSection("Colors")
 
 local INPUTHEX = Tab:CreateInput({
