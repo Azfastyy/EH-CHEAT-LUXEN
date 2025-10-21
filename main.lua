@@ -1399,7 +1399,7 @@ local function safeCarTeleport(targetPosition)
     
     local startPos = primaryPart.Position
     local distance = (targetPosition - startPos).Magnitude
-    local speed = 180
+    local speed = 300
     local speedInStuds = speed * 0.277778
     local duration = distance / speedInStuds
     
