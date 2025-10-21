@@ -1339,265 +1339,6 @@ local Toggle = Tab:CreateToggle({
 
 -- Services
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-
--- Remote
-local DamageRemote = ReplicatedStorage.Bnl["91af7f12-cf3e-46cd-955f-87212cb5a1a9"]
-
--- Variables
-local spinConnection
-local antiDamageConnection
-local originalFireServer = DamageRemote.FireServer
-local selectedPlayer = nil
-
--- Fonction pour trouver le véhicule du joueur
-local function findPlayerVehicle(playerName)
-    playerName = playerName or LocalPlayer.Name
-    local vehiclesFolder = workspace:FindFirstChild("Vehicles")
-    if not vehiclesFolder then return nil end
-    
-    local playerVehicle = vehiclesFolder:FindFirstChild(playerName)
-    return playerVehicle
-end
-
--- Fonction pour obtenir la liste des joueurs
-local function getPlayerList()
-    local playerList = {}
-    for _, player in pairs(Players:GetPlayers()) do
-        table.insert(playerList, player.Name)
-    end
-    return playerList
-end
-
--- Services
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-
--- Remote
-local DamageRemote = ReplicatedStorage.Bnl["91af7f12-cf3e-46cd-955f-87212cb5a1a9"]
-
--- Variables
-local spinConnection
-local originalFireServer
-local originalNamecall
-local selectedPlayer = nil
-
--- Fonction pour trouver le véhicule du joueur
-local function findPlayerVehicle(playerName)
-    playerName = playerName or LocalPlayer.Name
-    local vehiclesFolder = workspace:FindFirstChild("Vehicles")
-    if not vehiclesFolder then return nil end
-    
-    local playerVehicle = vehiclesFolder:FindFirstChild(playerName)
-    return playerVehicle
-end
-
--- Fonction pour obtenir la liste des joueurs
-local function getPlayerList()
-    local playerList = {}
-    for _, player in pairs(Players:GetPlayers()) do
-        if player.Name ~= LocalPlayer.Name then -- Exclure soi-même
-            table.insert(playerList, player.Name)
-        end
-    end
-    return playerList
-end
-
-local Tab = Window:CreateTab("🤡｜Troll", 0)
-
-local Section = Tab:CreateSection("Spin")
-
--- Variables pour le spin
-local spinEnabled = false
-local spinSpeed = 10
-
-local Toggle = Tab:CreateToggle({
-   Name = "Spin",
-   CurrentValue = false,
-   Flag = "spin_toggle",
-   Callback = function(Value)
-       spinEnabled = Value
-       
-       if Value then
-           spinConnection = RunService.Heartbeat:Connect(function()
-               local vehicle = findPlayerVehicle()
-               if not vehicle then return end
-               
-               -- Appel direct au remote
-               pcall(function()
-                   DamageRemote:FireServer(vehicle, spinSpeed)
-               end)
-           end)
-           
-           Rayfield:Notify({
-               Title = "Spin",
-               Content = "Activated!",
-               Duration = 2,
-               Image = 4483362458,
-           })
-       else
-           if spinConnection then
-               spinConnection:Disconnect()
-               spinConnection = nil
-           end
-       end
-   end,
-})
-
-local Slider = Tab:CreateSlider({
-   Name = "Spin speed",
-   Range = {10, 500},
-   Increment = 10,
-   Suffix = "speed",
-   CurrentValue = 10,
-   Flag = "spin_speed",
-   Callback = function(Value)
-       spinSpeed = Value
-   end,
-})
-
--- Section Kill Car
-local Section3 = Tab:CreateSection("Kill Car")
-
-local Dropdown = Tab:CreateDropdown({
-   Name = "Select Player",
-   Options = getPlayerList(),
-   CurrentOption = getPlayerList()[1] and {getPlayerList()[1]} or {"No players"},
-   MultipleOptions = false,
-   Flag = "player_dropdown",
-   Callback = function(Options)
-       selectedPlayer = Options[1]
-   end,
-})
-
--- Mettre à jour la liste des joueurs
-Players.PlayerAdded:Connect(function()
-    task.wait(0.5)
-    Dropdown:Refresh(getPlayerList(), true)
-end)
-
-Players.PlayerRemoving:Connect(function()
-    task.wait(0.5)
-    Dropdown:Refresh(getPlayerList(), true)
-end)
-
-local Button = Tab:CreateButton({
-   Name = "Kill Car (18x)",
-   Callback = function()
-       if not selectedPlayer or selectedPlayer == "No players" then
-           Rayfield:Notify({
-               Title = "Error",
-               Content = "No player selected!",
-               Duration = 2,
-               Image = 4483362458,
-           })
-           return
-       end
-       
-       local targetVehicle = findPlayerVehicle(selectedPlayer)
-       if not targetVehicle then
-           Rayfield:Notify({
-               Title = "Error",
-               Content = selectedPlayer .. " has no vehicle!",
-               Duration = 2,
-               Image = 4483362458,
-           })
-           return
-       end
-       
-       -- Spam le remote 18 fois
-       task.spawn(function()
-           for i = 1, 18 do
-               pcall(function()
-                   DamageRemote:FireServer(targetVehicle, 2601.1297832362407)
-               end)
-               task.wait(0.1)
-           end
-           
-           Rayfield:Notify({
-               Title = "Kill Car",
-               Content = "Sent 18 packets to " .. selectedPlayer .. "'s car!",
-               Duration = 3,
-               Image = 4483362458,
-           })
-       end)
-   end,
-})
-
--- Section Anti Damage
-local Section2 = Tab:CreateSection("Protection")
-
-local antiDamageEnabled = false
-
-Tab:CreateToggle({
-   Name = "Anti crash damage",
-   CurrentValue = false,
-   Flag = "car_anti_crash_toggle",
-   Callback = function(Value)
-       antiDamageEnabled = Value
-       
-       if Value then
-           -- Hook avec __namecall (plus fiable)
-           originalNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-               local method = getnamecallmethod()
-               local args = {...}
-               
-               if self == DamageRemote and method == "FireServer" then
-                   local vehicle = findPlayerVehicle()
-                   
-                   -- Bloquer si c'est notre véhicule ET pas notre appel
-                   if args[1] == vehicle and not spinEnabled then
-                       return -- Bloque l'appel
-                   end
-               end
-               
-               return originalNamecall(self, ...)
-           end)
-           
-           Rayfield:Notify({
-               Title = "Anti Damage",
-               Content = "Protection enabled!",
-               Duration = 2,
-               Image = 4483362458,
-           })
-       else
-           if originalNamecall then
-               hookmetamethod(game, "__namecall", originalNamecall)
-           end
-           
-           Rayfield:Notify({
-               Title = "Anti Damage",
-               Content = "Deactivated",
-               Duration = 2,
-               Image = 4483362458,
-           })
-       end
-   end,
-})
-
--- Cleanup
-LocalPlayer.CharacterRemoving:Connect(function()
-    if spinConnection then spinConnection:Disconnect() end
-    if originalNamecall then
-        hookmetamethod(game, "__namecall", originalNamecall)
-    end
-end)
-
-local Tab = Window:CreateTab("📦｜Miscs", 0)
-
-local Tab = Window:CreateTab("✏️｜Credits", 0)
-
-
-
-local Label = Tab:CreateLabel("Created & owned by Azfa & Vamp 🧛", 0, Color3.fromRGB(255, 255, 255), false) -- Title, Icon, Color, IgnoreTheme
-
-
--- Services
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
@@ -1623,13 +1364,13 @@ local plateText1 = "AA"
 local plateText2 = "EN"
 local plateText3 = "86"
 
--- Créer le Tab Garage
-local Tab = Window:CreateTab("🔧｜Garage", 0)
+-- Creer le Tab Garage
+local GarageTab = Window:CreateTab("🔧｜Garage", 0)
 
 -- Section Upgrades
-local Section1 = Tab:CreateSection("Performance Upgrades")
+local Section1 = GarageTab:CreateSection("Performance Upgrades")
 
-local SLIDERENGINE = Tab:CreateSlider({
+local SLIDERENGINE = GarageTab:CreateSlider({
    Name = "Engine Level",
    Range = {0, 6},
    Increment = 1,
@@ -1641,7 +1382,7 @@ local SLIDERENGINE = Tab:CreateSlider({
    end,
 })
 
-local BRAKESLIDER = Tab:CreateSlider({
+local BRAKESLIDER = GarageTab:CreateSlider({
    Name = "Brake Level",
    Range = {0, 6},
    Increment = 1,
@@ -1653,7 +1394,7 @@ local BRAKESLIDER = Tab:CreateSlider({
    end,
 })
 
-local ARMORSLIDER = Tab:CreateSlider({
+local ARMORSLIDER = GarageTab:CreateSlider({
    Name = "Armor Level",
    Range = {0, 6},
    Increment = 1,
@@ -1665,7 +1406,7 @@ local ARMORSLIDER = Tab:CreateSlider({
    end,
 })
 
-local BUTTONAPPLY = Tab:CreateButton({
+local BUTTONAPPLY = GarageTab:CreateButton({
    Name = "Apply Upgrades (FREE)",
    Callback = function()
        local success = pcall(function()
@@ -1689,9 +1430,9 @@ local BUTTONAPPLY = Tab:CreateButton({
    end,
 })
 
-local Section2 = Tab:CreateSection("Colors")
+local Section2 = GarageTab:CreateSection("Colors")
 
-local INPUTHEX = Tab:CreateInput({
+local INPUTHEX = GarageTab:CreateInput({
    Name = "Car Color (HEX)",
    PlaceholderText = "#FFFFFF",
    RemoveTextAfterFocusLost = false,
@@ -1709,7 +1450,7 @@ local INPUTHEX = Tab:CreateInput({
    end,
 })
 
-local BUTTONAPPLYCOLOR = Tab:CreateButton({
+local BUTTONAPPLYCOLOR = GarageTab:CreateButton({
    Name = "Apply Car Color",
    Callback = function()
        local success = pcall(function()
@@ -1727,7 +1468,7 @@ local BUTTONAPPLYCOLOR = Tab:CreateButton({
    end,
 })
 
-local INPUTWHEEL = Tab:CreateInput({
+local INPUTWHEEL = GarageTab:CreateInput({
    Name = "Wheel Color (HEX)",
    PlaceholderText = "#FFFFFF",
    RemoveTextAfterFocusLost = false,
@@ -1745,7 +1486,7 @@ local INPUTWHEEL = Tab:CreateInput({
    end,
 })
 
-local APPLYBUTTONWHEEL = Tab:CreateButton({
+local APPLYBUTTONWHEEL = GarageTab:CreateButton({
    Name = "Apply Wheel Color",
    Callback = function()
        local success = pcall(function()
@@ -1762,10 +1503,11 @@ local APPLYBUTTONWHEEL = Tab:CreateButton({
        end
    end,
 })
--- Section License Plate
-local Section3 = Tab:CreateSection("License Plate")
 
-local IMMA_1 = Tab:CreateInput({
+-- Section License Plate
+local Section3 = GarageTab:CreateSection("License Plate")
+
+local IMMA_1 = GarageTab:CreateInput({
    Name = "Part 1",
    PlaceholderText = "AA",
    RemoveTextAfterFocusLost = false,
@@ -1775,7 +1517,7 @@ local IMMA_1 = Tab:CreateInput({
    end,
 })
 
-local IMMA_2 = Tab:CreateInput({
+local IMMA_2 = GarageTab:CreateInput({
    Name = "Part 2",
    PlaceholderText = "EN",
    RemoveTextAfterFocusLost = false,
@@ -1785,7 +1527,7 @@ local IMMA_2 = Tab:CreateInput({
    end,
 })
 
-local IMMA_3 = Tab:CreateInput({
+local IMMA_3 = GarageTab:CreateInput({
    Name = "Part 3",
    PlaceholderText = "86",
    RemoveTextAfterFocusLost = false,
@@ -1795,7 +1537,7 @@ local IMMA_3 = Tab:CreateInput({
    end,
 })
 
-local APPLY_PLATE = Tab:CreateButton({
+local APPLY_PLATE = GarageTab:CreateButton({
    Name = "Apply License Plate",
    Callback = function()
        local success = pcall(function()
@@ -1814,9 +1556,9 @@ local APPLY_PLATE = Tab:CreateButton({
 })
 
 -- Section Quick Actions
-local Section4 = Tab:CreateSection("Quick Actions")
+local Section4 = GarageTab:CreateSection("Quick Actions")
 
-local INSTANT_REPAIR = Tab:CreateButton({
+local INSTANT_REPAIR = GarageTab:CreateButton({
    Name = "Instant Repair (FREE)",
    Callback = function()
        local success = pcall(function()
@@ -1834,7 +1576,7 @@ local INSTANT_REPAIR = Tab:CreateButton({
    end,
 })
 
-local MAXALLBUTTON = Tab:CreateButton({
+local MAXALLBUTTON = GarageTab:CreateButton({
    Name = "⚡ Quick Max All",
    Callback = function()
        local success = pcall(function()
@@ -1857,7 +1599,6 @@ local MAXALLBUTTON = Tab:CreateButton({
        end
    end,
 })
-
 
 
 Rayfield:LoadConfiguration()
