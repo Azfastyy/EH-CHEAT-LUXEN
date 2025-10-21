@@ -2104,7 +2104,43 @@ local function getPlayerList()
     return playerList
 end
 
-local Tab = Window:CreateTab("🤡｜troll", 0)
+-- Services
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Remote
+local DamageRemote = ReplicatedStorage.Bnl["91af7f12-cf3e-46cd-955f-87212cb5a1a9"]
+
+-- Variables
+local spinConnection
+local originalFireServer
+local originalNamecall
+local selectedPlayer = nil
+
+-- Fonction pour trouver le véhicule du joueur
+local function findPlayerVehicle(playerName)
+    playerName = playerName or LocalPlayer.Name
+    local vehiclesFolder = workspace:FindFirstChild("Vehicles")
+    if not vehiclesFolder then return nil end
+    
+    local playerVehicle = vehiclesFolder:FindFirstChild(playerName)
+    return playerVehicle
+end
+
+-- Fonction pour obtenir la liste des joueurs
+local function getPlayerList()
+    local playerList = {}
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.Name ~= LocalPlayer.Name then -- Exclure soi-même
+            table.insert(playerList, player.Name)
+        end
+    end
+    return playerList
+end
+
+local Tab = Window:CreateTab("🤡｜Troll", 0)
 
 local Section = Tab:CreateSection("Spin")
 
@@ -2124,8 +2160,10 @@ local Toggle = Tab:CreateToggle({
                local vehicle = findPlayerVehicle()
                if not vehicle then return end
                
-               -- Spam le remote pour faire tourner le véhicule
-               DamageRemote:FireServer(vehicle, spinSpeed)
+               -- Appel direct au remote
+               pcall(function()
+                   DamageRemote:FireServer(vehicle, spinSpeed)
+               end)
            end)
            
            Rayfield:Notify({
@@ -2161,7 +2199,7 @@ local Section3 = Tab:CreateSection("Kill Car")
 local Dropdown = Tab:CreateDropdown({
    Name = "Select Player",
    Options = getPlayerList(),
-   CurrentOption = {LocalPlayer.Name},
+   CurrentOption = getPlayerList()[1] and {getPlayerList()[1]} or {"No players"},
    MultipleOptions = false,
    Flag = "player_dropdown",
    Callback = function(Options)
@@ -2171,17 +2209,19 @@ local Dropdown = Tab:CreateDropdown({
 
 -- Mettre à jour la liste des joueurs
 Players.PlayerAdded:Connect(function()
+    task.wait(0.5)
     Dropdown:Refresh(getPlayerList(), true)
 end)
 
 Players.PlayerRemoving:Connect(function()
+    task.wait(0.5)
     Dropdown:Refresh(getPlayerList(), true)
 end)
 
 local Button = Tab:CreateButton({
-   Name = "Kill Car",
+   Name = "Kill Car (18x)",
    Callback = function()
-       if not selectedPlayer then
+       if not selectedPlayer or selectedPlayer == "No players" then
            Rayfield:Notify({
                Title = "Error",
                Content = "No player selected!",
@@ -2203,52 +2243,64 @@ local Button = Tab:CreateButton({
        end
        
        -- Spam le remote 18 fois
-       for i = 1, 18 do
-           DamageRemote:FireServer(targetVehicle, 2601.1297832362407)
-           task.wait(0.05) -- Petit délai entre chaque appel
-       end
-       
-       Rayfield:Notify({
-           Title = "Kill Car",
-           Content = "Sent 18 damage packets to " .. selectedPlayer .. "'s car!",
-           Duration = 3,
-           Image = 4483362458,
-       })
+       task.spawn(function()
+           for i = 1, 18 do
+               pcall(function()
+                   DamageRemote:FireServer(targetVehicle, 2601.1297832362407)
+               end)
+               task.wait(0.1)
+           end
+           
+           Rayfield:Notify({
+               Title = "Kill Car",
+               Content = "Sent 18 packets to " .. selectedPlayer .. "'s car!",
+               Duration = 3,
+               Image = 4483362458,
+           })
+       end)
    end,
 })
 
 -- Section Anti Damage
 local Section2 = Tab:CreateSection("Protection")
 
+local antiDamageEnabled = false
+
 Tab:CreateToggle({
    Name = "Anti crash damage",
    CurrentValue = false,
    Flag = "car_anti_crash_toggle",
    Callback = function(Value)
+       antiDamageEnabled = Value
+       
        if Value then
-           -- Hook le remote pour bloquer les appels
-           DamageRemote.FireServer = function(self, ...)
+           -- Hook avec __namecall (plus fiable)
+           originalNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+               local method = getnamecallmethod()
                local args = {...}
-               local vehicle = findPlayerVehicle()
                
-               -- Bloquer seulement si c'est notre véhicule ET que ce n'est pas nous qui l'appelons
-               if args[1] == vehicle and not spinEnabled then
-                   return -- Bloque le remote
+               if self == DamageRemote and method == "FireServer" then
+                   local vehicle = findPlayerVehicle()
+                   
+                   -- Bloquer si c'est notre véhicule ET pas notre appel
+                   if args[1] == vehicle and not spinEnabled then
+                       return -- Bloque l'appel
+                   end
                end
                
-               -- Sinon, appeler la fonction originale
-               return originalFireServer(self, ...)
-           end
+               return originalNamecall(self, ...)
+           end)
            
            Rayfield:Notify({
                Title = "Anti Damage",
-               Content = "Remote blocked!",
+               Content = "Protection enabled!",
                Duration = 2,
                Image = 4483362458,
            })
        else
-           -- Restaurer la fonction originale
-           DamageRemote.FireServer = originalFireServer
+           if originalNamecall then
+               hookmetamethod(game, "__namecall", originalNamecall)
+           end
            
            Rayfield:Notify({
                Title = "Anti Damage",
@@ -2263,8 +2315,9 @@ Tab:CreateToggle({
 -- Cleanup
 LocalPlayer.CharacterRemoving:Connect(function()
     if spinConnection then spinConnection:Disconnect() end
-    if antiDamageConnection then antiDamageConnection:Disconnect() end
-    DamageRemote.FireServer = originalFireServer -- Restaurer le remote
+    if originalNamecall then
+        hookmetamethod(game, "__namecall", originalNamecall)
+    end
 end)
 
 local Tab = Window:CreateTab("📦｜Miscs", 0)
