@@ -1166,12 +1166,8 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 
 -- Variables globales
-local carFlyEnabled = false
-local carFlySpeed = 120
-local carFlyKeybind = Enum.KeyCode.K
 local carAccelEnabled = false
 local carAccelValue = 0
 local carMaxSpeedValue = 200
@@ -1204,137 +1200,8 @@ local function findPlayerVehicle()
     return nil
 end
 
--- Section Car Fly
-local Section = Tab:CreateSection("Car Fly")
-
-local carFlyConnection = nil
-
-local function startCarFly()
-    if carFlyConnection then return end
-    
-    carFlyConnection = RunService.Heartbeat:Connect(function()
-        if not carFlyEnabled then return end
-        
-        local vehicle = findPlayerVehicle()
-        if not vehicle then return end
-        
-        local primaryPart = vehicle.PrimaryPart or vehicle:FindFirstChild("DriveSeat") or vehicle:FindFirstChildWhichIsA("BasePart")
-        if not primaryPart then return end
-        
-        local camera = workspace.CurrentCamera
-        local moveDirection = Vector3.new(0, 0, 0)
-        
-        -- Contrôles de direction
-        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
-            moveDirection = moveDirection + (camera.CFrame.LookVector * carFlySpeed)
-        end
-        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
-            moveDirection = moveDirection - (camera.CFrame.LookVector * carFlySpeed)
-        end
-        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
-            moveDirection = moveDirection - (camera.CFrame.RightVector * carFlySpeed)
-        end
-        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
-            moveDirection = moveDirection + (camera.CFrame.RightVector * carFlySpeed)
-        end
-        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-            moveDirection = moveDirection + Vector3.new(0, carFlySpeed, 0)
-        end
-        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
-            moveDirection = moveDirection - Vector3.new(0, carFlySpeed, 0)
-        end
-        
-        -- Appliquer le mouvement
-        for _, part in pairs(vehicle:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
-                part.Velocity = moveDirection
-                part.RotVelocity = Vector3.new(0, 0, 0)
-            end
-        end
-        
-        -- Orienter le véhicule vers la caméra
-        if moveDirection.Magnitude > 0 then
-            local lookAt = CFrame.new(primaryPart.Position, primaryPart.Position + camera.CFrame.LookVector)
-            primaryPart.CFrame = lookAt
-        end
-    end)
-end
-
-local function stopCarFly()
-    if carFlyConnection then
-        carFlyConnection:Disconnect()
-        carFlyConnection = nil
-    end
-    
-    local vehicle = findPlayerVehicle()
-    if vehicle then
-        for _, part in pairs(vehicle:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = true
-                part.Velocity = Vector3.new(0, 0, 0)
-            end
-        end
-    end
-end
-
-local Toggle = Tab:CreateToggle({
-   Name = "Car fly",
-   CurrentValue = false,
-   Flag = "car_fly",
-   Callback = function(Value)
-       carFlyEnabled = Value
-       if Value then
-           startCarFly()
-           Rayfield:Notify({
-               Title = "Car Fly",
-               Content = "Activated! Press " .. carFlyKeybind.Name .. " to toggle",
-               Duration = 3,
-               Image = 4483362458,
-           })
-       else
-           stopCarFly()
-       end
-   end,
-})
-
-local CarFlySpeed = Tab:CreateSlider({
-    Name = "Car Fly Speed",
-    Range = {50, 500},
-    Increment = 10,
-    Suffix = " speed",
-    CurrentValue = 120,
-    Flag = "fly_speed",
-    Callback = function(Value)
-        carFlySpeed = Value
-    end,
-})
-
-local CarFlyKeybind = Tab:CreateKeybind({
-    Name = "Car Fly Keybind",
-    CurrentKeybind = "K",
-    HoldToInteract = false,
-    Flag = "car_fly_keybind",
-    Callback = function(Keybind)
-        carFlyKeybind = Enum.KeyCode[Keybind]
-    end,
-})
-
--- Keybind listener
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.KeyCode == carFlyKeybind then
-        carFlyEnabled = not carFlyEnabled
-        if carFlyEnabled then
-            startCarFly()
-        else
-            stopCarFly()
-        end
-    end
-end)
-
 -- Section Car Boost
-local Section2 = Tab:CreateSection("Car boost")
+local Section = Tab:CreateSection("Car boost")
 
 local speedConnection = nil
 
@@ -1407,47 +1274,24 @@ local AccelToggle = Tab:CreateToggle({
 })
 
 -- Section Car Tuning
-local Section3 = Tab:CreateSection("Car tuning")
-
-local function changeCarColor(color)
-    local vehicle = findPlayerVehicle()
-    if not vehicle then return end
-    
-    for _, part in pairs(vehicle:GetDescendants()) do
-        if part:IsA("BasePart") and not part.Name:lower():match("rim") and not part.Name:lower():match("wheel") then
-            part.Color = color
-        end
-    end
-end
-
-local function changeRimsColor(color)
-    local vehicle = findPlayerVehicle()
-    if not vehicle then return end
-    
-    for _, part in pairs(vehicle:GetDescendants()) do
-        if part:IsA("BasePart") and (part.Name:lower():match("rim") or part.Name:lower():match("wheel")) then
-            part.Color = color
-        end
-    end
-end
-
-local function changeHeadlightColor(color)
-    local vehicle = findPlayerVehicle()
-    if not vehicle then return end
-    
-    for _, light in pairs(vehicle:GetDescendants()) do
-        if light:IsA("Light") or light:IsA("SurfaceLight") or light:IsA("SpotLight") then
-            light.Color = color
-        end
-    end
-end
+local Section2 = Tab:CreateSection("Car tuning")
 
 local CarColorPicker = Tab:CreateColorPicker({
     Name = "Car Color",
     Color = Color3.fromRGB(255,255,255),
     Flag = "car_color",
     Callback = function(Value)
-        changeCarColor(Value)
+        pcall(function()
+            local remote = ReplicatedStorage.Bnl["a57a7cba-6681-43f3-bfe3-72e368ea953e"]
+            remote:FireServer(Value)
+            
+            Rayfield:Notify({
+                Title = "Car Color",
+                Content = "Color changed!",
+                Duration = 2,
+                Image = 4483362458,
+            })
+        end)
     end
 })
 
@@ -1456,21 +1300,21 @@ local RimsColorPicker = Tab:CreateColorPicker({
     Color = Color3.fromRGB(255,255,255),
     Flag = "rims_color",
     Callback = function(Value)
-        changeRimsColor(Value)
+        pcall(function()
+            local remote = ReplicatedStorage.Bnl["97634261-49f5-4f76-ae3e-c14da26b609f"]
+            remote:FireServer(Value)
+            
+            Rayfield:Notify({
+                Title = "Rims Color",
+                Content = "Color changed!",
+                Duration = 2,
+                Image = 4483362458,
+            })
+        end)
     end
 })
 
-local HeadlightColorPicker = Tab:CreateColorPicker({
-    Name = "Headlight Color",
-    Color = Color3.fromRGB(255,255,255),
-    Flag = "headlight_color",
-    Callback = function(Value)
-        changeHeadlightColor(Value)
-    end
-})
-
--- Pour Engine, Brakes et Armor - tu devras me donner le remote
--- Voici un placeholder pour le moment
+local Section3 = Tab:CreateSection("Car upgrades")
 
 local EngineSlider = Tab:CreateSlider({
     Name = "Engine Level",
@@ -1480,13 +1324,17 @@ local EngineSlider = Tab:CreateSlider({
     CurrentValue = 1,
     Flag = "engine_level",
     Callback = function(Value)
-        -- TODO: Ajouter le remote ici
-        Rayfield:Notify({
-            Title = "Engine Level",
-            Content = "Set to level " .. Value .. " (Remote needed)",
-            Duration = 2,
-            Image = 4483362458,
-        })
+        pcall(function()
+            local remote = ReplicatedStorage.Bnl["742ec593-0e80-4fbe-987c-b53c8a45efb1"]
+            remote:FireServer(Value)
+            
+            Rayfield:Notify({
+                Title = "Engine Level",
+                Content = "Set to level " .. Value,
+                Duration = 2,
+                Image = 4483362458,
+            })
+        end)
     end,
 })
 
@@ -1498,13 +1346,17 @@ local BrakesSlider = Tab:CreateSlider({
     CurrentValue = 1,
     Flag = "brakes_level",
     Callback = function(Value)
-        -- TODO: Ajouter le remote ici
-        Rayfield:Notify({
-            Title = "Brakes Level",
-            Content = "Set to level " .. Value .. " (Remote needed)",
-            Duration = 2,
-            Image = 4483362458,
-        })
+        pcall(function()
+            local remote = ReplicatedStorage.Bnl["ae7cdaff-0ba0-4647-8cf1-a3c7e8f30228"]
+            remote:FireServer(Value)
+            
+            Rayfield:Notify({
+                Title = "Brakes Level",
+                Content = "Set to level " .. Value,
+                Duration = 2,
+                Image = 4483362458,
+            })
+        end)
     end,
 })
 
@@ -1516,20 +1368,134 @@ local ArmorSlider = Tab:CreateSlider({
     CurrentValue = 1,
     Flag = "armor_level",
     Callback = function(Value)
-        -- TODO: Ajouter le remote ici
-        Rayfield:Notify({
-            Title = "Armor Level",
-            Content = "Set to level " .. Value .. " (Remote needed)",
-            Duration = 2,
-            Image = 4483362458,
-        })
+        pcall(function()
+            local remote = ReplicatedStorage.Bnl["6b043f6c-0b28-46df-a735-73ee58d66ca0"]
+            remote:FireServer(Value)
+            
+            Rayfield:Notify({
+                Title = "Armor Level",
+                Content = "Set to level " .. Value,
+                Duration = 2,
+                Image = 4483362458,
+            })
+        end)
     end,
 })
 
+local Section4 = Tab:CreateSection("License Plate")
+
+local LicensePlateInput = Tab:CreateInput({
+    Name = "License Plate Text",
+    PlaceholderText = "Enter plate (max 6 chars)",
+    RemoveTextAfterFocusLost = false,
+    Flag = "license_plate_input",
+    Callback = function(Text)
+        -- Sauvegarder le texte mais ne pas l'appliquer automatiquement
+    end,
+})
+
+Tab:CreateButton({
+    Name = "Apply License Plate",
+    Callback = function()
+        local plateText = Rayfield.Flags["license_plate_input"].CurrentValue or ""
+        
+        if plateText == "" then
+            Rayfield:Notify({
+                Title = "Error",
+                Content = "Please enter a plate text!",
+                Duration = 3,
+                Image = 4483362458,
+            })
+            return
+        end
+        
+        -- Limiter à 6 caractères max
+        plateText = string.upper(plateText:sub(1, 6))
+        
+        -- Diviser le texte en 3 parties (2-2-2 caractères)
+        local part1 = plateText:sub(1, 2)
+        local part2 = plateText:sub(3, 4)
+        local part3 = plateText:sub(5, 6)
+        
+        -- Remplir avec des espaces si nécessaire
+        if #part1 < 2 then part1 = part1 .. string.rep(" ", 2 - #part1) end
+        if #part2 < 2 then part2 = part2 .. string.rep(" ", 2 - #part2) end
+        if #part3 < 2 then part3 = part3 .. string.rep(" ", 2 - #part3) end
+        
+        pcall(function()
+            local remote = ReplicatedStorage["6WP"]["43a9ce6a-daff-47f3-a3f0-3fdcee2fea1c"]
+            remote:FireServer(1, part1, part2, part3)
+            
+            Rayfield:Notify({
+                Title = "License Plate",
+                Content = "Plate changed to: " .. plateText,
+                Duration = 3,
+                Image = 4483362458,
+            })
+        end)
+    end,
+})
+
+local Section5 = Tab:CreateSection("Car repair")
+
+Tab:CreateButton({
+    Name = "Repair Car",
+    Callback = function()
+        pcall(function()
+            local remote = ReplicatedStorage.Bnl["f0a778c6-ce1d-4d62-b34f-de692b648aca"]
+            remote:FireServer()
+            
+            Rayfield:Notify({
+                Title = "Repair",
+                Content = "Car repaired!",
+                Duration = 2,
+                Image = 4483362458,
+            })
+        end)
+    end,
+})
+
+-- Auto Repair Toggle
+local autoRepairConnection = nil
+
+Tab:CreateToggle({
+   Name = "Auto Repair",
+   CurrentValue = false,
+   Flag = "auto_repair_toggle",
+   Callback = function(Value)
+       if Value then
+           autoRepairConnection = RunService.Heartbeat:Connect(function()
+               local vehicle = findPlayerVehicle()
+               if vehicle then
+                   pcall(function()
+                       local remote = ReplicatedStorage.Bnl["f0a778c6-ce1d-4d62-b34f-de692b648aca"]
+                       remote:FireServer()
+                   end)
+               end
+               wait(0.5) -- Réparer toutes les 0.5 secondes
+           end)
+           
+           Rayfield:Notify({
+               Title = "Auto Repair",
+               Content = "Activated!",
+               Duration = 2,
+               Image = 4483362458,
+           })
+       else
+           if autoRepairConnection then
+               autoRepairConnection:Disconnect()
+               autoRepairConnection = nil
+           end
+       end
+   end,
+})
+
 -- Anti Crash Damage
+local Section6 = Tab:CreateSection("Protection")
+
 local antiCrashConnection = nil
 
-local AntiCrashToggle = Tab:CreateToggle({
+Tab:CreateToggle({
    Name = "Anti crash damage",
    CurrentValue = false,
    Flag = "car_anti_crash_toggle",
@@ -1542,18 +1508,17 @@ local AntiCrashToggle = Tab:CreateToggle({
                if not vehicle then return end
                
                local health = vehicle:FindFirstChild("Health")
-               if health then
+               if health and health.Value then
                    health.Value = health.MaxValue or 100
                end
                
-               -- Protéger toutes les parties du véhicule
+               -- Limiter les vitesses pour éviter les crashs
                for _, part in pairs(vehicle:GetDescendants()) do
                    if part:IsA("BasePart") then
-                       part.AssemblyLinearVelocity = Vector3.new(
-                           math.clamp(part.AssemblyLinearVelocity.X, -200, 200),
-                           math.clamp(part.AssemblyLinearVelocity.Y, -200, 200),
-                           math.clamp(part.AssemblyLinearVelocity.Z, -200, 200)
-                       )
+                       local velocity = part.AssemblyLinearVelocity
+                       if velocity.Magnitude > 300 then
+                           part.AssemblyLinearVelocity = velocity.Unit * 300
+                       end
                    end
                end
            end)
@@ -1573,11 +1538,11 @@ local AntiCrashToggle = Tab:CreateToggle({
    end,
 })
 
--- Cleanup en quittant
+-- Cleanup
 LocalPlayer.CharacterRemoving:Connect(function()
-    stopCarFly()
     if speedConnection then speedConnection:Disconnect() end
     if antiCrashConnection then antiCrashConnection:Disconnect() end
+    if autoRepairConnection then autoRepairConnection:Disconnect() end
 end)
 
 local Tab = Window:CreateTab("🧨｜Weapon Mods", 0)
